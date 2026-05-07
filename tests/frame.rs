@@ -1,4 +1,4 @@
-use persona_signal::{
+use signal_persona::{
     AuthProof, Frame, FrameBody, Message, MessageId, Request, SendMessage,
     version::HandshakeRequest,
 };

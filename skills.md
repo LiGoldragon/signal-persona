@@ -1,4 +1,4 @@
-# persona-signal skill
+# signal-persona skill
 
 This repository is a contract crate. Add only shared signal records, their
 encoding methods, and round-trip tests.

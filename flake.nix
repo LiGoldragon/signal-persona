@@ -16,7 +16,7 @@
         system: pkgs:
         {
           default = pkgs.rustPlatform.buildRustPackage {
-            pname = "persona-signal";
+            pname = "signal-persona";
             version = "0.1.0";
             src = ./.;
             cargoLock.lockFile = ./Cargo.lock;

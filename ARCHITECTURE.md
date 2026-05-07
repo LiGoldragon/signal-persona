@@ -1,8 +1,8 @@
-# persona-signal — architecture
+# signal-persona — architecture
 
 *Shared Persona signaling vocabulary.*
 
-`persona-signal` is the contract crate for Rust-to-Rust component signaling in
+`signal-persona` is the contract crate for Rust-to-Rust component signaling in
 Persona. Every component that sends or receives Persona wire bytes depends on
 this crate for the same `Frame` type, rkyv feature set, handshake records, and
 closed request/reply/event enums.
@@ -16,12 +16,12 @@ storage, NOTA parsing, routing policy, terminal adapters, or deployment.
 
 ```mermaid
 flowchart LR
-    "persona-message" -->|"Frame"| "persona-signal"
-    "persona-router" -->|"Frame"| "persona-signal"
-    "persona-store" -->|"Frame"| "persona-signal"
-    "persona-system" -->|"Frame"| "persona-signal"
-    "persona-harness" -->|"Frame"| "persona-signal"
-    "persona-signal" -->|"length-prefixed rkyv"| "local IPC"
+    "persona-message" -->|"Frame"| "signal-persona"
+    "persona-router" -->|"Frame"| "signal-persona"
+    "persona-store" -->|"Frame"| "signal-persona"
+    "persona-system" -->|"Frame"| "signal-persona"
+    "persona-harness" -->|"Frame"| "signal-persona"
+    "signal-persona" -->|"length-prefixed rkyv"| "local IPC"
 ```
 
 ## 1 · Wire Vocabulary
@@ -40,7 +40,7 @@ The wire is a 4-byte big-endian length prefix followed by one rkyv archive of a
 
 ## 2 · State and Ownership
 
-`persona-signal` owns no durable state. Schema compatibility is expressed by
+`signal-persona` owns no durable state. Schema compatibility is expressed by
 typed version records that consumers store and check at their own boot
 boundaries.
 

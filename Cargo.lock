@@ -128,14 +128,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "persona-signal"
-version = "0.1.0"
-dependencies = [
- "rkyv",
- "thiserror",
-]
-
-[[package]]
 name = "pin-project-lite"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -232,6 +224,14 @@ name = "rustversion"
 version = "1.0.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
+
+[[package]]
+name = "signal-persona"
+version = "0.1.0"
+dependencies = [
+ "rkyv",
+ "thiserror",
+]
 
 [[package]]
 name = "simdutf8"

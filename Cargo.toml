@@ -1,15 +1,15 @@
 [package]
-name         = "persona-signal"
+name         = "signal-persona"
 version      = "0.1.0"
 edition      = "2024"
 rust-version = "1.85"
 license      = "MIT OR Apache-2.0"
-repository   = "https://github.com/LiGoldragon/persona-signal"
+repository   = "https://github.com/LiGoldragon/signal-persona"
 description  = "Persona binary wire contract."
 publish      = false
 
 [lib]
-name = "persona_signal"
+name = "signal_persona"
 path = "src/lib.rs"
 
 [dependencies]

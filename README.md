@@ -1,4 +1,4 @@
-# persona-signal
+# signal-persona
 
 Shared Persona wire contract.
 

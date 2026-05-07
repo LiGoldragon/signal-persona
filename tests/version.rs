@@ -1,4 +1,4 @@
-use persona_signal::ProtocolVersion;
+use signal_persona::ProtocolVersion;
 
 #[test]
 fn compatibility_requires_equal_major_and_forward_minor() {
