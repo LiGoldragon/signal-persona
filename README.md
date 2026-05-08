@@ -2,7 +2,7 @@
 
 Shared Persona wire contract.
 
-This crate defines the typed `Frame` records exchanged by Persona components and
-encodes them as length-prefixed rkyv archives. Human-facing text remains outside
-this repository; NOTA appears at CLI, harness, and audit projections only.
-
+This crate defines Persona payload records for the shared Sema frame from
+`signal-core`. Persona components exchange
+`signal_core::Frame<PersonaRequest, PersonaReply>` archives; human-facing Nexus
+or NOTA text remains outside this repository.

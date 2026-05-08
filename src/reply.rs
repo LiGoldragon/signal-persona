@@ -1,52 +1,82 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use signal_core::Slot;
 
-use crate::{DeliveryDecision, MessageId, StoreTransitionId};
+use crate::{Binding, Delivery, Harness, Lock, Message, Record};
+
+pub type Reply = signal_core::Reply<PersonaReply>;
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum Reply {
-    Accepted(Accepted),
-    Delivered(Delivered),
-    Deferred(Deferred),
-    Rejected(Rejected),
-    StoreCommitted(StoreCommitted),
-    StoreRejected(StoreRejected),
-    SystemSubscriptionAccepted(SystemSubscriptionAccepted),
+pub enum PersonaReply {
+    Ok(CommitOutcome),
+    Records(Records),
+    Diagnostic(Diagnostic),
+    SubscriptionAccepted(SubscriptionAccepted),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Accepted {
-    pub message_id: MessageId,
+pub enum CommitOutcome {
+    Message(Slot<Message>),
+    Delivery(Slot<Delivery>),
+    Binding(Slot<Binding>),
+    Harness(Slot<Harness>),
+    Lock(Slot<Lock>),
+    Generic,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Delivered {
-    pub message_id: MessageId,
-    pub target: String,
+pub enum Records {
+    Message(Vec<SlottedRecord<Message>>),
+    Delivery(Vec<SlottedRecord<Delivery>>),
+    Binding(Vec<SlottedRecord<Binding>>),
+    Harness(Vec<SlottedRecord<Harness>>),
+    Lock(Vec<SlottedRecord<Lock>>),
+    Mixed(Vec<Record>),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Deferred {
-    pub message_id: MessageId,
-    pub decision: DeliveryDecision,
+pub struct SlottedRecord<Record> {
+    slot: Slot<Record>,
+    record: Record,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Rejected {
-    pub reason: String,
+pub struct Diagnostic {
+    code: String,
+    message: String,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct StoreCommitted {
-    pub transition_id: StoreTransitionId,
+pub struct SubscriptionAccepted {
+    query: crate::Query,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct StoreRejected {
-    pub transition_id: StoreTransitionId,
-    pub reason: String,
+impl PersonaReply {
+    pub fn ok(outcome: CommitOutcome) -> Self {
+        Self::Ok(outcome)
+    }
+
+    pub fn records(records: Records) -> Self {
+        Self::Records(records)
+    }
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct SystemSubscriptionAccepted {
-    pub subscription_id: String,
+impl<Record> SlottedRecord<Record> {
+    pub fn new(slot: Slot<Record>, record: Record) -> Self {
+        Self { slot, record }
+    }
+}
+
+impl Diagnostic {
+    pub fn new(code: impl Into<String>, message: impl Into<String>) -> Self {
+        Self {
+            code: code.into(),
+            message: message.into(),
+        }
+    }
+}
+
+impl SubscriptionAccepted {
+    pub fn new(query: crate::Query) -> Self {
+        Self { query }
+    }
 }

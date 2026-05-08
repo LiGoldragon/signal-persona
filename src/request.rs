@@ -1,39 +1,117 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use signal_core::{Revision, Slot};
 
-use crate::{HarnessBinding, Message, MessageId, StoreTransitionId, SystemObservation};
+use crate::{
+    Authorization, AuthorizationQuery, Binding, BindingQuery, Deadline, DeadlineExpired, Delivery,
+    DeliveryQuery, Harness, HarnessQuery, Lock, LockQuery, Message, MessageQuery, Observation,
+    RecordSlot, StreamFrame, StreamFrameQuery, Transition, TransitionQuery,
+};
+
+pub type Request = signal_core::Request<PersonaRequest>;
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum Request {
-    SendMessage(SendMessage),
-    DeliverMessage(DeliverMessage),
-    RegisterHarness(RegisterHarness),
-    StoreTransition(StoreTransition),
-    SubscribeSystem(SubscribeSystem),
+pub enum PersonaRequest {
+    Record(Record),
+    Mutation(Mutation),
+    Retraction(Retraction),
+    Atomic(Vec<Record>),
+    Query(Query),
+    Validation(Validation),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct SendMessage {
-    pub message: Message,
+pub enum Record {
+    Message(Message),
+    Authorization(Authorization),
+    Delivery(Delivery),
+    Binding(Binding),
+    Harness(Harness),
+    Observation(Observation),
+    Lock(Lock),
+    StreamFrame(StreamFrame),
+    Deadline(Deadline),
+    DeadlineExpired(DeadlineExpired),
+    Transition(Transition),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct DeliverMessage {
-    pub message_id: MessageId,
-    pub recipient: String,
+pub enum Mutation {
+    Delivery(Slotted<Delivery>),
+    Binding(Slotted<Binding>),
+    Harness(Slotted<Harness>),
+    Lock(Slotted<Lock>),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct RegisterHarness {
-    pub binding: HarnessBinding,
+pub enum Retraction {
+    Message(Slot<Message>),
+    Delivery(Slot<Delivery>),
+    Binding(Slot<Binding>),
+    Harness(Slot<Harness>),
+    Lock(Slot<Lock>),
+    Deadline(Slot<Deadline>),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct StoreTransition {
-    pub transition_id: StoreTransitionId,
-    pub observation: SystemObservation,
+pub enum Validation {
+    Mutation(Mutation),
+    Atomic(Vec<Record>),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct SubscribeSystem {
-    pub subscriber: String,
+pub struct Slotted<Record> {
+    slot: Slot<Record>,
+    expected_revision: Option<Revision>,
+    record: Record,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub enum Query {
+    Message(MessageQuery),
+    Authorization(AuthorizationQuery),
+    Delivery(DeliveryQuery),
+    Binding(BindingQuery),
+    Harness(HarnessQuery),
+    Lock(LockQuery),
+    StreamFrame(StreamFrameQuery),
+    Transition(TransitionQuery),
+    RecordSlot(RecordSlot),
+}
+
+impl PersonaRequest {
+    pub fn record(record: Record) -> Self {
+        Self::Record(record)
+    }
+
+    pub fn query(query: Query) -> Self {
+        Self::Query(query)
+    }
+}
+
+impl Record {
+    pub fn message(message: Message) -> Self {
+        Self::Message(message)
+    }
+
+    pub fn delivery(delivery: Delivery) -> Self {
+        Self::Delivery(delivery)
+    }
+}
+
+impl<Record> Slotted<Record> {
+    pub fn new(slot: Slot<Record>, expected_revision: Option<Revision>, record: Record) -> Self {
+        Self {
+            slot,
+            expected_revision,
+            record,
+        }
+    }
+
+    pub fn slot(&self) -> &Slot<Record> {
+        &self.slot
+    }
+
+    pub fn record(&self) -> &Record {
+        &self.record
+    }
 }

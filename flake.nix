@@ -19,7 +19,12 @@
             pname = "signal-persona";
             version = "0.1.0";
             src = ./.;
-            cargoLock.lockFile = ./Cargo.lock;
+            cargoLock = {
+              lockFile = ./Cargo.lock;
+              outputHashes = {
+                "signal-core-0.1.0" = "sha256-gv5ss0KUrPqgnhHxsqyMDUCtRHpCVZouqVOoeciBfQI=";
+              };
+            };
           };
         }
       );
@@ -49,4 +54,3 @@
       formatter = forSystems (system: pkgs: pkgs.nixfmt);
     };
 }
-

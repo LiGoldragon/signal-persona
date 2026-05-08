@@ -1,28 +1,58 @@
-pub mod auth;
+//! Persona signaling vocabulary over the shared Sema verb frame.
+
+pub mod authorization;
+pub mod binding;
+pub mod deadline;
 pub mod delivery;
 pub mod error;
-pub mod frame;
 pub mod harness;
+pub mod identity;
+pub mod lock;
 pub mod message;
+pub mod observation;
 pub mod reply;
 pub mod request;
 pub mod store;
-pub mod system;
-pub mod version;
+pub mod stream;
+pub mod transition;
 
-pub use auth::{AuthProof, CapabilityProof, LocalProcessProof};
-pub use delivery::{BlockReason, DeferredDelivery, DeliverNow, DeliveryDecision, RejectedDelivery};
+pub type Frame = signal_core::Frame<PersonaRequest, PersonaReply>;
+pub type FrameBody = signal_core::FrameBody<PersonaRequest, PersonaReply>;
+
+pub use authorization::{
+    Authorization, AuthorizationDecision, AuthorizationDecisionPattern, AuthorizationQuery,
+    AuthorizationTargetPattern,
+};
+pub use binding::{
+    Binding, BindingEndpointPattern, BindingQuery, BindingTargetPattern, HarnessEndpoint,
+};
+pub use deadline::{Deadline, DeadlineExpired, TimestampNanos};
+pub use delivery::{
+    BlockReason, Delivery, DeliveryMessagePattern, DeliveryQuery, DeliveryState,
+    DeliveryStatePattern, DeliveryTargetPattern,
+};
 pub use error::PersonaSignalError;
-pub use frame::{Frame, FrameBody};
-pub use harness::{HarnessBinding, HarnessEndpoint};
-pub use message::{Message, MessageAddress, MessageBody, MessageId};
+pub use harness::{
+    Harness, HarnessKind, HarnessQuery, LifecyclePattern, LifecycleState, PrincipalPattern,
+};
+pub use identity::{ComponentName, PrincipalName};
+pub use lock::{
+    Lock, LockQuery, LockStatus, LockStatusPattern, RoleName, RolePattern, Scope, ScopeAccess,
+};
+pub use message::{Message, MessageBody, MessageQuery, MessageRecipientPattern, TextPattern};
+pub use observation::{
+    FocusObservation, HarnessObservation, InputBufferObservation, InputBufferState, Observation,
+    WindowClosed,
+};
 pub use reply::{
-    Accepted, Deferred, Delivered, Rejected, Reply, StoreCommitted, StoreRejected,
-    SystemSubscriptionAccepted,
+    CommitOutcome, Diagnostic, PersonaReply, Records, Reply, SlottedRecord, SubscriptionAccepted,
 };
-pub use request::{
-    DeliverMessage, RegisterHarness, Request, SendMessage, StoreTransition, SubscribeSystem,
+pub use request::{Mutation, PersonaRequest, Query, Record, Request, Retraction, Slotted};
+pub use signal_core::{
+    AuthProof, FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, LocalOperatorProof,
+    ProtocolVersion, Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SemaVerb,
+    Slot,
 };
-pub use store::{SchemaVersion, StoreTransitionId};
-pub use system::{FocusState, InputBufferState, SystemEvent, SystemObservation};
-pub use version::{HandshakeReply, HandshakeRequest, PERSONA_PROTOCOL_VERSION, ProtocolVersion};
+pub use store::SchemaVersion;
+pub use stream::{StreamBytesPattern, StreamFrame, StreamFrameQuery, StreamHarnessPattern};
+pub use transition::{RecordSlot, Transition, TransitionQuery, TransitionSubjectPattern};

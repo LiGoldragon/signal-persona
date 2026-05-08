@@ -226,10 +226,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 
 [[package]]
+name = "signal-core"
+version = "0.1.0"
+source = "git+https://github.com/LiGoldragon/signal-core.git?rev=56002aa7d7cf5553294bfcbff5cd7711eb57c1bb#56002aa7d7cf5553294bfcbff5cd7711eb57c1bb"
+dependencies = [
+ "rkyv",
+ "thiserror",
+]
+
+[[package]]
 name = "signal-persona"
 version = "0.1.0"
 dependencies = [
  "rkyv",
+ "signal-core",
  "thiserror",
 ]
 

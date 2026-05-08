@@ -1,96 +1,124 @@
 # signal-persona — architecture
 
-*Shared Persona signaling vocabulary.*
+*Persona record vocabulary over the shared Sema verb frame.*
 
-`signal-persona` is the contract crate for Rust-to-Rust component signaling in
-Persona. Every component that sends or receives Persona wire bytes depends on
-this crate for the same `Frame` type, rkyv feature set, handshake records, and
-closed request/reply/event enums.
+`signal-persona` is the contract crate for Rust-to-Rust Persona
+component signaling. It depends on `signal-core` for the frame
+envelope, handshake, auth proof, typed slots, revisions, and the
+closed twelve-verb request spine. This crate supplies Persona's
+domain records and query payloads.
 
 ---
 
 ## 0 · TL;DR
 
-This crate owns types and encoding only. It does not own daemons, actors,
-storage, NOTA parsing, routing policy, terminal adapters, or deployment.
+This crate owns types and encoding only. It does not own daemons,
+actors, storage, Nexus/NOTA parsing, routing policy, terminal
+adapters, or deployment.
 
 ```mermaid
 flowchart LR
-    "persona-message" -->|"Frame"| "signal-persona"
-    "persona-router" -->|"Frame"| "signal-persona"
-    "persona-store" -->|"Frame"| "signal-persona"
-    "persona-system" -->|"Frame"| "signal-persona"
-    "persona-harness" -->|"Frame"| "signal-persona"
-    "signal-persona" -->|"length-prefixed rkyv"| "local IPC"
+    "signal-core" -->|"Frame + twelve verbs"| "signal-persona"
+    "signal-persona" -->|"Persona payload records"| "persona-message"
+    "signal-persona" -->|"Persona payload records"| "persona-router"
+    "signal-persona" -->|"Persona payload records"| "persona-store"
+    "signal-persona" -->|"Persona payload records"| "persona-system"
+    "signal-persona" -->|"Persona payload records"| "persona-harness"
 ```
 
-## 1 · Wire Vocabulary
+## 1 · Wire Shape
 
-The wire is a 4-byte big-endian length prefix followed by one rkyv archive of a
-`Frame`.
+The wire is `signal_core::Frame<PersonaRequest, PersonaReply>` encoded as a
+length-prefixed rkyv archive. Top-level operation requests use
+`signal_core::Request<PersonaRequest>`:
 
-`Frame` carries:
+```text
+Request::Operation { verb: SemaVerb::Assert, payload: PersonaRequest::Record(...) }
+Request::Operation { verb: SemaVerb::Match, payload: PersonaRequest::Query(...) }
+Request::Operation { verb: SemaVerb::Mutate, payload: PersonaRequest::Mutation(...) }
+```
 
-- optional auth proof;
-- handshake request/reply bodies;
-- closed request enum;
-- closed reply enum;
-- typed message, system, delivery, harness, and store records;
-- schema and protocol version records.
+The verb set comes from `signal-core`:
 
-## 2 · State and Ownership
+```text
+Assert Subscribe Constrain Mutate Match Infer
+Retract Aggregate Project Atomic Validate Recurse
+```
 
-`signal-persona` owns no durable state. Schema compatibility is expressed by
-typed version records that consumers store and check at their own boot
-boundaries.
+Persona adds record kinds beneath those verbs. Persona does not add verbs named
+`Send`, `Deliver`, `Defer`, `Status`, or `ClaimScope`.
 
-## 3 · Boundaries
+## 2 · Record Discipline
+
+Infrastructure mints identity, sender, and commit time.
+
+| Value | Owner | Persona record field? |
+|---|---|---|
+| record identity | store returns `Slot<T>` | no |
+| sender principal | auth proof / runtime principal binding | no |
+| commit time | transition log | no |
+| recipient | agent-supplied content | yes |
+| message body | agent-supplied content | yes |
+| lifecycle or delivery state | reducer decision | yes |
+| deadline timestamp | agent-supplied content timestamp | yes, typed |
+
+Concrete example: `Message` has `recipient` and `body`. It has no `id`,
+`sender`, `from`, `created_at`, or `updated_at` field. The store returns
+`Slot<Message>` in the commit reply.
+
+## 3 · Owned Modules
+
+```text
+src/lib.rs            module entry, type aliases, and re-exports
+src/identity.rs       PrincipalName and ComponentName
+src/message.rs        Message, MessageBody, MessageQuery
+src/delivery.rs       Delivery, DeliveryState, BlockReason, DeliveryQuery
+src/authorization.rs  Authorization and AuthorizationQuery
+src/binding.rs        Binding, HarnessEndpoint, BindingQuery
+src/harness.rs        Harness, HarnessKind, LifecycleState, HarnessQuery
+src/observation.rs    Focus/Input/Window/Harness observation facts
+src/lock.rs           Lock, Scope, role/status query payloads
+src/stream.rs         StreamFrame and StreamFrameQuery
+src/deadline.rs       Deadline, DeadlineExpired, TimestampNanos
+src/transition.rs     Transition and typed record-slot references
+src/request.rs        PersonaRequest payload enum
+src/reply.rs          PersonaReply payload enum
+src/store.rs          schema version records
+tests/                rkyv frame round trips
+```
+
+## 4 · Boundaries
 
 This crate owns:
 
-- `Frame` encode/decode methods;
-- length-prefix framing;
-- protocol version and handshake records;
-- auth-proof record shapes;
-- request and reply enums;
-- shared system-event and delivery-decision record shapes;
-- round-trip tests for the records it defines.
+- Persona record and query payload types.
+- `Frame` / `FrameBody` type aliases over `signal-core`.
+- `PersonaRequest` and `PersonaReply` payload enums.
+- rkyv round-trip tests for the contract shape.
 
 This crate does not own:
 
-- actor runtime;
-- redb tables;
-- reducer logic;
-- NOTA codecs;
-- CLI parsing;
-- terminal input or output.
+- store actors, reducers, subscriptions, or redb tables;
+- terminal, window-manager, network, or harness effects;
+- Nexus/NOTA parsing and rendering;
+- CLI syntax;
+- auth validation behavior.
 
-## 4 · Invariants
+## 5 · Invariants
 
 - Contract types are defined once, here.
-- Every consumer uses the same rkyv feature set.
-- Incoming archives are bytechecked before access.
+- Every consumer uses the same rkyv feature set through this crate and
+  `signal-core`.
 - Closed enums do not use an `Unknown` escape variant.
-- NOTA is a projection outside this crate, not the component wire.
-
-## Code Map
-
-```text
-src/frame.rs     Frame envelope and length-prefix encoding
-src/version.rs   protocol version and handshake records
-src/auth.rs      auth proof records
-src/request.rs   closed request enum and payloads
-src/reply.rs     closed reply enum and payloads
-src/message.rs   message records
-src/system.rs    system observation records
-src/harness.rs   harness binding records
-src/delivery.rs  delivery decision records
-src/store.rs     store/schema identifiers
-tests/           rkyv round-trip and compatibility tests
-```
+- Query records are payloads under verbs; they are not top-level verbs.
+- Tests use typed records and frame round trips, not string-prefix checks.
+- No Persona schema field stores an agent-minted identity, sender, or commit
+  timestamp.
 
 ## See Also
 
-- `~/primary/skills/contract-repo.md`
-- `~/primary/skills/rust-discipline.md`
-- `../persona/ARCHITECTURE.md`
+- `/home/li/primary/reports/designer/40-twelve-verbs-in-persona.md`
+- `/home/li/primary/reports/operator/41-persona-twelve-verbs-implementation-consequences.md`
+- `/home/li/primary/skills/contract-repo.md`
+- `/home/li/primary/skills/rust-discipline.md`
+- `../signal-core/ARCHITECTURE.md`
