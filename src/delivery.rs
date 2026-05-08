@@ -1,5 +1,5 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use signal_core::Slot;
+use signal_core::{PatternField, Slot};
 
 use crate::{Message, PrincipalName};
 
@@ -34,26 +34,9 @@ pub struct DeliveryQuery {
     state: DeliveryStatePattern,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum DeliveryMessagePattern {
-    Any,
-    Exact(Slot<Message>),
-    Bind,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum DeliveryTargetPattern {
-    Any,
-    Exact(PrincipalName),
-    Bind,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum DeliveryStatePattern {
-    Any,
-    Exact(DeliveryState),
-    Bind,
-}
+pub type DeliveryMessagePattern = PatternField<Slot<Message>>;
+pub type DeliveryTargetPattern = PatternField<PrincipalName>;
+pub type DeliveryStatePattern = PatternField<DeliveryState>;
 
 impl Delivery {
     pub fn new(message: Slot<Message>, target: PrincipalName, state: DeliveryState) -> Self {
@@ -94,7 +77,7 @@ impl DeliveryQuery {
         Self::new(
             DeliveryMessagePattern::Bind,
             DeliveryTargetPattern::Bind,
-            DeliveryStatePattern::Exact(DeliveryState::Pending),
+            DeliveryStatePattern::Match(DeliveryState::Pending),
         )
     }
 }

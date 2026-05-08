@@ -1,5 +1,5 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use signal_core::Slot;
+use signal_core::{PatternField, Slot};
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Transition {
@@ -21,12 +21,7 @@ pub struct TransitionQuery {
     subject: TransitionSubjectPattern,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum TransitionSubjectPattern {
-    Any,
-    Exact(RecordSlot),
-    Bind,
-}
+pub type TransitionSubjectPattern = PatternField<RecordSlot>;
 
 impl Transition {
     pub fn new(subject: RecordSlot, verb: signal_core::SemaVerb) -> Self {

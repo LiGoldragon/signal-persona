@@ -22,7 +22,9 @@
             cargoLock = {
               lockFile = ./Cargo.lock;
               outputHashes = {
-                "signal-core-0.1.0" = "sha256-gv5ss0KUrPqgnhHxsqyMDUCtRHpCVZouqVOoeciBfQI=";
+                "nota-codec-0.1.0" = "sha256-8VwneAUq1+kur+o8uuvV8lxz8p3alFuT3EYMJsaQznc=";
+                "nota-derive-0.1.0" = "sha256-se8zZsYzYlIJr75Q+i88k0EfUkRA/cEFafozBKfmlHY=";
+                "signal-core-0.1.0" = "sha256-OiaNRHSkCf8tbTn50q10HVjMdfZ3BaJAgQUHIdYp2BQ=";
               };
             };
           };

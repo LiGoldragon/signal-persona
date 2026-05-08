@@ -1,5 +1,5 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use signal_core::Slot;
+use signal_core::{PatternField, Slot};
 
 use crate::{Message, PrincipalName};
 
@@ -24,19 +24,8 @@ pub struct AuthorizationQuery {
     decision: AuthorizationDecisionPattern,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum AuthorizationTargetPattern {
-    Any,
-    Exact(PrincipalName),
-    Bind,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum AuthorizationDecisionPattern {
-    Any,
-    Exact(AuthorizationDecision),
-    Bind,
-}
+pub type AuthorizationTargetPattern = PatternField<PrincipalName>;
+pub type AuthorizationDecisionPattern = PatternField<AuthorizationDecision>;
 
 impl Authorization {
     pub fn new(

@@ -14,7 +14,7 @@ pub enum PersonaRequest {
     Record(Record),
     Mutation(Mutation),
     Retraction(Retraction),
-    Atomic(Vec<Record>),
+    Atomic(Vec<AtomicOperation>),
     Query(Query),
     Validation(Validation),
 }
@@ -53,9 +53,16 @@ pub enum Retraction {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub enum AtomicOperation {
+    Record(Record),
+    Mutation(Mutation),
+    Retraction(Retraction),
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Validation {
     Mutation(Mutation),
-    Atomic(Vec<Record>),
+    Atomic(Vec<AtomicOperation>),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
@@ -85,6 +92,10 @@ impl PersonaRequest {
 
     pub fn query(query: Query) -> Self {
         Self::Query(query)
+    }
+
+    pub fn atomic(operations: Vec<AtomicOperation>) -> Self {
+        Self::Atomic(operations)
     }
 }
 

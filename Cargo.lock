@@ -122,6 +122,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nota-codec"
+version = "0.1.0"
+source = "git+https://github.com/LiGoldragon/nota-codec.git?branch=main#adbdb6fa525159aacb5f815232c1c7ef6c9390a7"
+dependencies = [
+ "nota-derive",
+ "thiserror",
+]
+
+[[package]]
+name = "nota-derive"
+version = "0.1.0"
+source = "git+https://github.com/LiGoldragon/nota-derive.git?branch=main#599801220cfcd744432f0503d7ea3924507d6535"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -228,8 +247,9 @@ checksum = "b39cdef0fa800fc44525c84ccb54a029961a8215f9619753635a9c0d2538d46d"
 [[package]]
 name = "signal-core"
 version = "0.1.0"
-source = "git+https://github.com/LiGoldragon/signal-core.git?rev=56002aa7d7cf5553294bfcbff5cd7711eb57c1bb#56002aa7d7cf5553294bfcbff5cd7711eb57c1bb"
+source = "git+https://github.com/LiGoldragon/signal-core.git?rev=525f2d5a479056437b75e10ab17a11bacf93bf56#525f2d5a479056437b75e10ab17a11bacf93bf56"
 dependencies = [
+ "nota-codec",
  "rkyv",
  "thiserror",
 ]

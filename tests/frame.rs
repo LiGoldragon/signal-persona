@@ -1,6 +1,7 @@
 use signal_persona::{
-    AuthProof, CommitOutcome, Frame, FrameBody, LocalOperatorProof, Message, MessageBody,
-    PersonaReply, PersonaRequest, PrincipalName, Record, Request, SemaVerb, Slot,
+    AtomicOperation, AuthProof, CommitOutcome, Delivery, DeliveryState, Frame, FrameBody,
+    LocalOperatorProof, Lock, Message, MessageBody, Mutation, PersonaReply, PersonaRequest,
+    PrincipalName, Record, Request, Retraction, RoleName, Scope, ScopeAccess, SemaVerb, Slot,
 };
 
 #[test]
@@ -48,5 +49,62 @@ fn commit_reply_returns_store_minted_message_slot() {
             assert_eq!(slot.number(), 1024);
         }
         other => panic!("expected slotted message commit reply, got {other:?}"),
+    }
+}
+
+#[test]
+fn atomic_request_can_mix_records_mutations_and_retractions() {
+    let message = Message::new(PrincipalName::new("responder"), MessageBody::new("status"));
+    let delivery = Delivery::new(
+        Slot::new(7),
+        PrincipalName::new("responder"),
+        DeliveryState::Pending,
+    );
+    let request = PersonaRequest::atomic(vec![
+        AtomicOperation::Record(Record::message(message)),
+        AtomicOperation::Mutation(Mutation::Delivery(signal_persona::Slotted::new(
+            Slot::new(12),
+            None,
+            delivery,
+        ))),
+        AtomicOperation::Retraction(Retraction::Message(Slot::new(7))),
+    ]);
+    let frame = Frame::new(FrameBody::Request(Request::atomic(request.clone())));
+
+    let bytes = frame.encode().expect("frame encodes");
+    let decoded = Frame::decode(&bytes).expect("frame decodes");
+
+    match decoded.into_body() {
+        FrameBody::Request(signal_persona::CoreRequest::Operation {
+            verb: SemaVerb::Atomic,
+            payload,
+        }) => assert_eq!(payload, request),
+        other => panic!("expected Atomic PersonaRequest, got {other:?}"),
+    }
+}
+
+#[test]
+fn lock_agent_is_a_principal_name() {
+    let lock = Lock::new(
+        RoleName::new("operator"),
+        PrincipalName::new("codex"),
+        signal_persona::LockStatus::Active,
+        vec![Scope::new(
+            "/git/github.com/LiGoldragon/signal-persona",
+            ScopeAccess::Edit,
+        )],
+    );
+    let request = PersonaRequest::record(Record::Lock(lock.clone()));
+    let frame = Frame::new(FrameBody::Request(Request::assert(request)));
+
+    let bytes = frame.encode().expect("frame encodes");
+    let decoded = Frame::decode(&bytes).expect("frame decodes");
+
+    match decoded.into_body() {
+        FrameBody::Request(signal_persona::CoreRequest::Operation {
+            verb: SemaVerb::Assert,
+            payload: PersonaRequest::Record(Record::Lock(decoded_lock)),
+        }) => assert_eq!(decoded_lock, lock),
+        other => panic!("expected Assert Lock request, got {other:?}"),
     }
 }

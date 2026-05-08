@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 [dependencies]
 rkyv = { version = "0.8", default-features = false, features = ["std", "bytecheck", "little_endian", "pointer_width_32", "unaligned"] }
-signal-core = { git = "https://github.com/LiGoldragon/signal-core.git", rev = "56002aa7d7cf5553294bfcbff5cd7711eb57c1bb" }
+signal-core = { git = "https://github.com/LiGoldragon/signal-core.git", rev = "525f2d5a479056437b75e10ab17a11bacf93bf56" }
 thiserror = "2"
 
 [lints.rust]

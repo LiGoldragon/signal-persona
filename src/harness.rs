@@ -1,4 +1,5 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use signal_core::PatternField;
 
 use crate::{ComponentName, PrincipalName};
 
@@ -34,19 +35,8 @@ pub struct HarnessQuery {
     lifecycle: LifecyclePattern,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum PrincipalPattern {
-    Any,
-    Exact(PrincipalName),
-    Bind,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum LifecyclePattern {
-    Any,
-    Exact(LifecycleState),
-    Bind,
-}
+pub type PrincipalPattern = PatternField<PrincipalName>;
+pub type LifecyclePattern = PatternField<LifecycleState>;
 
 impl Harness {
     pub fn new(

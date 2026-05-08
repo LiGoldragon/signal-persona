@@ -47,7 +47,9 @@ pub use observation::{
 pub use reply::{
     CommitOutcome, Diagnostic, PersonaReply, Records, Reply, SlottedRecord, SubscriptionAccepted,
 };
-pub use request::{Mutation, PersonaRequest, Query, Record, Request, Retraction, Slotted};
+pub use request::{
+    AtomicOperation, Mutation, PersonaRequest, Query, Record, Request, Retraction, Slotted,
+};
 pub use signal_core::{
     AuthProof, FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, LocalOperatorProof,
     ProtocolVersion, Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SemaVerb,

@@ -1,4 +1,5 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use signal_core::PatternField;
 
 use crate::PrincipalName;
 
@@ -17,19 +18,8 @@ pub struct MessageQuery {
     body: TextPattern,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum MessageRecipientPattern {
-    Any,
-    Exact(PrincipalName),
-    Bind,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum TextPattern {
-    Any,
-    Exact(String),
-    Bind,
-}
+pub type MessageRecipientPattern = PatternField<PrincipalName>;
+pub type TextPattern = PatternField<String>;
 
 impl Message {
     pub fn new(recipient: PrincipalName, body: MessageBody) -> Self {
@@ -61,7 +51,7 @@ impl MessageQuery {
     }
 
     pub fn inbox(recipient: PrincipalName) -> Self {
-        Self::new(MessageRecipientPattern::Exact(recipient), TextPattern::Bind)
+        Self::new(MessageRecipientPattern::Match(recipient), TextPattern::Bind)
     }
 
     pub fn recipient(&self) -> &MessageRecipientPattern {

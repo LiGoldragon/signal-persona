@@ -1,9 +1,12 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use signal_core::PatternField;
+
+use crate::PrincipalName;
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
 pub struct Lock {
     role: RoleName,
-    agent: String,
+    agent: PrincipalName,
     status: LockStatus,
     scopes: Vec<Scope>,
 }
@@ -35,30 +38,19 @@ pub struct LockQuery {
     status: LockStatusPattern,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum RolePattern {
-    Any,
-    Exact(RoleName),
-    Bind,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum LockStatusPattern {
-    Any,
-    Exact(LockStatus),
-    Bind,
-}
+pub type RolePattern = PatternField<RoleName>;
+pub type LockStatusPattern = PatternField<LockStatus>;
 
 impl Lock {
     pub fn new(
         role: RoleName,
-        agent: impl Into<String>,
+        agent: PrincipalName,
         status: LockStatus,
         scopes: Vec<Scope>,
     ) -> Self {
         Self {
             role,
-            agent: agent.into(),
+            agent,
             status,
             scopes,
         }

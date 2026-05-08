@@ -1,4 +1,5 @@
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use signal_core::PatternField;
 
 use crate::PrincipalName;
 
@@ -21,19 +22,8 @@ pub struct BindingQuery {
     endpoint: BindingEndpointPattern,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum BindingTargetPattern {
-    Any,
-    Exact(PrincipalName),
-    Bind,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum BindingEndpointPattern {
-    Any,
-    Exact(HarnessEndpoint),
-    Bind,
-}
+pub type BindingTargetPattern = PatternField<PrincipalName>;
+pub type BindingEndpointPattern = PatternField<HarnessEndpoint>;
 
 impl Binding {
     pub fn new(target: PrincipalName, endpoint: HarnessEndpoint) -> Self {
@@ -56,7 +46,7 @@ impl BindingQuery {
 
     pub fn for_target(target: PrincipalName) -> Self {
         Self::new(
-            BindingTargetPattern::Exact(target),
+            BindingTargetPattern::Match(target),
             BindingEndpointPattern::Bind,
         )
     }
