@@ -13,7 +13,7 @@ domain records and query payloads.
 ## 0 · TL;DR
 
 This crate owns types and encoding only. It does not own daemons,
-actors, storage, Nexus/NOTA parsing, routing policy, terminal
+actors, storage, Nexus records in NOTA syntax, routing policy, terminal
 adapters, or deployment.
 
 ```mermaid
@@ -21,7 +21,8 @@ flowchart LR
     "signal-core" -->|"Frame + twelve verbs"| "signal-persona"
     "signal-persona" -->|"Persona payload records"| "persona-message"
     "signal-persona" -->|"Persona payload records"| "persona-router"
-    "signal-persona" -->|"Persona payload records"| "persona-store"
+    "signal-persona" -->|"Persona payload records"| "persona-orchestrate"
+    "signal-persona" -->|"Persona stored records"| "persona-sema"
     "signal-persona" -->|"Persona payload records"| "persona-system"
     "signal-persona" -->|"Persona payload records"| "persona-harness"
 ```
@@ -100,7 +101,7 @@ This crate does not own:
 
 - store actors, reducers, subscriptions, or redb tables;
 - terminal, window-manager, network, or harness effects;
-- Nexus/NOTA parsing and rendering;
+- Nexus record parsing and rendering over NOTA syntax;
 - CLI syntax;
 - auth validation behavior.
 
