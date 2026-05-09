@@ -21,7 +21,7 @@ flowchart LR
     "signal-core" -->|"Frame + twelve verbs"| "signal-persona"
     "signal-persona" -->|"Persona payload records"| "persona-message"
     "signal-persona" -->|"Persona payload records"| "persona-router"
-    "signal-persona" -->|"Persona payload records"| "persona-orchestrate"
+    "signal-persona" -->|"Persona payload records"| "persona-mind"
     "signal-persona" -->|"Persona stored records"| "persona-sema"
     "signal-persona" -->|"Persona payload records"| "persona-system"
     "signal-persona" -->|"Persona payload records"| "persona-harness"
