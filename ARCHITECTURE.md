@@ -29,14 +29,14 @@ flowchart LR
 
 ## 1 · Wire Shape
 
-The wire is `signal_core::Frame<PersonaRequest, PersonaReply>` encoded as a
+The wire is `signal_core::Frame<RequestPayload, ReplyPayload>` encoded as a
 length-prefixed rkyv archive. Top-level operation requests use
-`signal_core::Request<PersonaRequest>`:
+`signal_core::Request<RequestPayload>`:
 
 ```text
-Request::Operation { verb: SemaVerb::Assert, payload: PersonaRequest::Record(...) }
-Request::Operation { verb: SemaVerb::Match, payload: PersonaRequest::Query(...) }
-Request::Operation { verb: SemaVerb::Mutate, payload: PersonaRequest::Mutation(...) }
+Request::Operation { verb: SemaVerb::Assert, payload: RequestPayload::Record(...) }
+Request::Operation { verb: SemaVerb::Match, payload: RequestPayload::Query(...) }
+Request::Operation { verb: SemaVerb::Mutate, payload: RequestPayload::Mutation(...) }
 ```
 
 The verb set comes from `signal-core`:
@@ -82,8 +82,8 @@ src/lock.rs           Lock, Scope, role/status query payloads
 src/stream.rs         StreamFrame and StreamFrameQuery
 src/deadline.rs       Deadline, DeadlineExpired, TimestampNanos
 src/transition.rs     Transition and typed record-slot references
-src/request.rs        PersonaRequest payload enum
-src/reply.rs          PersonaReply payload enum
+src/request.rs        RequestPayload payload enum
+src/reply.rs          ReplyPayload payload enum
 src/store.rs          schema version records
 tests/                rkyv frame round trips
 ```
@@ -94,7 +94,7 @@ This crate owns:
 
 - Persona record and query payload types.
 - `Frame` / `FrameBody` type aliases over `signal-core`.
-- `PersonaRequest` and `PersonaReply` payload enums.
+- `RequestPayload` and `ReplyPayload` payload enums.
 - rkyv round-trip tests for the contract shape.
 
 This crate does not own:

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 #[derive(Debug, Error, PartialEq, Eq)]
-pub enum PersonaSignalError {
+pub enum Error {
     #[error("archive validation failed")]
     ArchiveValidation,
     #[error("archive deserialize failed")]

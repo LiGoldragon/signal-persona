@@ -3,10 +3,10 @@ use signal_core::Slot;
 
 use crate::{Binding, Delivery, Harness, Lock, Message, Record};
 
-pub type Reply = signal_core::Reply<PersonaReply>;
+pub type Reply = signal_core::Reply<ReplyPayload>;
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum PersonaReply {
+pub enum ReplyPayload {
     Ok(CommitOutcome),
     Records(Records),
     Diagnostic(Diagnostic),
@@ -50,7 +50,7 @@ pub struct SubscriptionAccepted {
     query: crate::Query,
 }
 
-impl PersonaReply {
+impl ReplyPayload {
     pub fn ok(outcome: CommitOutcome) -> Self {
         Self::Ok(outcome)
     }

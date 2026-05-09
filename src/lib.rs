@@ -16,8 +16,8 @@ pub mod store;
 pub mod stream;
 pub mod transition;
 
-pub type Frame = signal_core::Frame<PersonaRequest, PersonaReply>;
-pub type FrameBody = signal_core::FrameBody<PersonaRequest, PersonaReply>;
+pub type Frame = signal_core::Frame<RequestPayload, ReplyPayload>;
+pub type FrameBody = signal_core::FrameBody<RequestPayload, ReplyPayload>;
 
 pub use authorization::{
     Authorization, AuthorizationDecision, AuthorizationDecisionPattern, AuthorizationQuery,
@@ -31,7 +31,7 @@ pub use delivery::{
     BlockReason, Delivery, DeliveryMessagePattern, DeliveryQuery, DeliveryState,
     DeliveryStatePattern, DeliveryTargetPattern,
 };
-pub use error::PersonaSignalError;
+pub use error::Error;
 pub use harness::{
     Harness, HarnessKind, HarnessQuery, LifecyclePattern, LifecycleState, PrincipalPattern,
 };
@@ -45,10 +45,10 @@ pub use observation::{
     WindowClosed,
 };
 pub use reply::{
-    CommitOutcome, Diagnostic, PersonaReply, Records, Reply, SlottedRecord, SubscriptionAccepted,
+    CommitOutcome, Diagnostic, Records, Reply, ReplyPayload, SlottedRecord, SubscriptionAccepted,
 };
 pub use request::{
-    AtomicOperation, Mutation, PersonaRequest, Query, Record, Request, Retraction, Slotted,
+    AtomicOperation, Mutation, Query, Record, Request, RequestPayload, Retraction, Slotted,
 };
 pub use signal_core::{
     AuthProof, FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, LocalOperatorProof,

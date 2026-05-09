@@ -1,7 +1,7 @@
 use signal_persona::{
     AtomicOperation, AuthProof, CommitOutcome, Delivery, DeliveryState, Frame, FrameBody,
-    LocalOperatorProof, Lock, Message, MessageBody, Mutation, PersonaReply, PersonaRequest,
-    PrincipalName, Record, Request, Retraction, RoleName, Scope, ScopeAccess, SemaVerb, Slot,
+    LocalOperatorProof, Lock, Message, MessageBody, Mutation, PrincipalName, Record, ReplyPayload,
+    Request, RequestPayload, Retraction, RoleName, Scope, ScopeAccess, SemaVerb, Slot,
 };
 
 #[test]
@@ -10,7 +10,7 @@ fn message_assert_frame_round_trips_without_agent_minted_identity_or_sender() {
         PrincipalName::new("responder"),
         MessageBody::new("send me status"),
     );
-    let frame = Frame::new(FrameBody::Request(Request::assert(PersonaRequest::record(
+    let frame = Frame::new(FrameBody::Request(Request::assert(RequestPayload::record(
         Record::message(message.clone()),
     ))))
     .with_auth(AuthProof::LocalOperator(LocalOperatorProof::new(
@@ -23,7 +23,7 @@ fn message_assert_frame_round_trips_without_agent_minted_identity_or_sender() {
     match decoded.into_body() {
         FrameBody::Request(signal_persona::CoreRequest::Operation {
             verb: SemaVerb::Assert,
-            payload: PersonaRequest::Record(Record::Message(decoded_message)),
+            payload: RequestPayload::Record(Record::Message(decoded_message)),
         }) => {
             assert_eq!(decoded_message, message);
             assert_eq!(decoded_message.recipient().as_str(), "responder");
@@ -36,14 +36,14 @@ fn message_assert_frame_round_trips_without_agent_minted_identity_or_sender() {
 #[test]
 fn commit_reply_returns_store_minted_message_slot() {
     let reply =
-        signal_persona::Reply::operation(PersonaReply::ok(CommitOutcome::Message(Slot::new(1024))));
+        signal_persona::Reply::operation(ReplyPayload::ok(CommitOutcome::Message(Slot::new(1024))));
     let frame = Frame::new(FrameBody::Reply(reply));
 
     let bytes = frame.encode_length_prefixed().expect("frame encodes");
     let decoded = Frame::decode_length_prefixed(&bytes).expect("frame decodes");
 
     match decoded.into_body() {
-        FrameBody::Reply(signal_persona::Reply::Operation(PersonaReply::Ok(
+        FrameBody::Reply(signal_persona::Reply::Operation(ReplyPayload::Ok(
             CommitOutcome::Message(slot),
         ))) => {
             assert_eq!(slot.number(), 1024);
@@ -60,7 +60,7 @@ fn atomic_request_can_mix_records_mutations_and_retractions() {
         PrincipalName::new("responder"),
         DeliveryState::Pending,
     );
-    let request = PersonaRequest::atomic(vec![
+    let request = RequestPayload::atomic(vec![
         AtomicOperation::Record(Record::message(message)),
         AtomicOperation::Mutation(Mutation::Delivery(signal_persona::Slotted::new(
             Slot::new(12),
@@ -79,7 +79,7 @@ fn atomic_request_can_mix_records_mutations_and_retractions() {
             verb: SemaVerb::Atomic,
             payload,
         }) => assert_eq!(payload, request),
-        other => panic!("expected Atomic PersonaRequest, got {other:?}"),
+        other => panic!("expected Atomic RequestPayload, got {other:?}"),
     }
 }
 
@@ -94,7 +94,7 @@ fn lock_agent_is_a_principal_name() {
             ScopeAccess::Edit,
         )],
     );
-    let request = PersonaRequest::record(Record::Lock(lock.clone()));
+    let request = RequestPayload::record(Record::Lock(lock.clone()));
     let frame = Frame::new(FrameBody::Request(Request::assert(request)));
 
     let bytes = frame.encode().expect("frame encodes");
@@ -103,7 +103,7 @@ fn lock_agent_is_a_principal_name() {
     match decoded.into_body() {
         FrameBody::Request(signal_persona::CoreRequest::Operation {
             verb: SemaVerb::Assert,
-            payload: PersonaRequest::Record(Record::Lock(decoded_lock)),
+            payload: RequestPayload::Record(Record::Lock(decoded_lock)),
         }) => assert_eq!(decoded_lock, lock),
         other => panic!("expected Assert Lock request, got {other:?}"),
     }

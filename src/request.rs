@@ -7,10 +7,10 @@ use crate::{
     RecordSlot, StreamFrame, StreamFrameQuery, Transition, TransitionQuery,
 };
 
-pub type Request = signal_core::Request<PersonaRequest>;
+pub type Request = signal_core::Request<RequestPayload>;
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum PersonaRequest {
+pub enum RequestPayload {
     Record(Record),
     Mutation(Mutation),
     Retraction(Retraction),
@@ -85,7 +85,7 @@ pub enum Query {
     RecordSlot(RecordSlot),
 }
 
-impl PersonaRequest {
+impl RequestPayload {
     pub fn record(record: Record) -> Self {
         Self::Record(record)
     }
