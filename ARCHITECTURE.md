@@ -99,7 +99,7 @@ This crate owns:
 
 This crate does not own:
 
-- store actors, reducers, subscriptions, or redb tables;
+- consumer runtime actors, reducers, subscriptions, or redb tables;
 - terminal, window-manager, network, or harness effects;
 - Nexus record parsing and rendering over NOTA syntax;
 - CLI syntax;
