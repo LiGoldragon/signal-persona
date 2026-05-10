@@ -2,57 +2,93 @@
   description = "Persona binary wire contract.";
 
   inputs = {
-    nixpkgs.url = "github:LiGoldragon/nixpkgs?ref=main";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    flake-utils.url = "github:numtide/flake-utils";
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    crane.url = "github:ipetkov/crane";
   };
 
   outputs =
-    { self, nixpkgs }:
-    let
-      systems = [ "x86_64-linux" "aarch64-linux" ];
-      forSystems = function: nixpkgs.lib.genAttrs systems (system: function system nixpkgs.legacyPackages.${system});
-    in
     {
-      packages = forSystems (
-        system: pkgs:
-        {
-          default = pkgs.rustPlatform.buildRustPackage {
-            pname = "signal-persona";
-            version = "0.1.0";
-            src = ./.;
-            cargoLock = {
-              lockFile = ./Cargo.lock;
-              outputHashes = {
-                "nota-codec-0.1.0" = "sha256-8VwneAUq1+kur+o8uuvV8lxz8p3alFuT3EYMJsaQznc=";
-                "nota-derive-0.1.0" = "sha256-se8zZsYzYlIJr75Q+i88k0EfUkRA/cEFafozBKfmlHY=";
-                "signal-core-0.1.0" = "sha256-OiaNRHSkCf8tbTn50q10HVjMdfZ3BaJAgQUHIdYp2BQ=";
-              };
-            };
-          };
-        }
-      );
+      self,
+      nixpkgs,
+      flake-utils,
+      fenix,
+      crane,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
+      let
+        pkgs = import nixpkgs { inherit system; };
+        toolchain = fenix.packages.${system}.fromToolchainFile {
+          file = ./rust-toolchain.toml;
+          sha256 = "sha256-gh/xTkxKHL4eiRXzWv8KP7vfjSk61Iq48x47BEDFgfk=";
+        };
+        craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
+        src = craneLib.cleanCargoSource ./.;
+        commonArgs = {
+          inherit src;
+          strictDeps = true;
+        };
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+      in
+      {
+        packages.default = craneLib.buildPackage (commonArgs // { inherit cargoArtifacts; });
 
-      checks = forSystems (
-        system: pkgs:
-        {
-          default = self.packages.${system}.default;
-        }
-      );
+        checks = {
+          build = craneLib.cargoBuild (commonArgs // { inherit cargoArtifacts; });
+          test = craneLib.cargoTest (commonArgs // { inherit cargoArtifacts; });
+          test-frame = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test frame";
+            }
+          );
+          test-version = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test version";
+            }
+          );
+          test-doc = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--doc";
+            }
+          );
+          doc = craneLib.cargoDoc (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              RUSTDOCFLAGS = "-D warnings";
+            }
+          );
+          fmt = craneLib.cargoFmt { inherit src; };
+          clippy = craneLib.cargoClippy (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoClippyExtraArgs = "--all-targets -- -D warnings";
+            }
+          );
+        };
 
-      devShells = forSystems (
-        system: pkgs:
-        {
-          default = pkgs.mkShell {
-            packages = [
-              pkgs.cargo
-              pkgs.clippy
-              pkgs.rust-analyzer
-              pkgs.rustc
-              pkgs.rustfmt
-            ];
-          };
-        }
-      );
+        devShells.default = pkgs.mkShell {
+          name = "signal-persona";
+          packages = [
+            pkgs.jujutsu
+            pkgs.pkg-config
+            toolchain
+          ];
+        };
 
-      formatter = forSystems (system: pkgs: pkgs.nixfmt);
-    };
+        formatter = pkgs.nixfmt;
+      }
+    );
 }
