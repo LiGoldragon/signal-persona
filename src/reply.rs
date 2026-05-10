@@ -7,7 +7,7 @@ pub type Reply = signal_core::Reply<ReplyPayload>;
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ReplyPayload {
-    Ok(CommitOutcome),
+    CommitAccepted(CommitOutcome),
     Records(Records),
     Diagnostic(Diagnostic),
     SubscriptionAccepted(SubscriptionAccepted),
@@ -20,7 +20,6 @@ pub enum CommitOutcome {
     Binding(Slot<Binding>),
     Harness(Slot<Harness>),
     Lock(Slot<Lock>),
-    Generic,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
@@ -30,13 +29,13 @@ pub enum Records {
     Binding(Vec<SlottedRecord<Binding>>),
     Harness(Vec<SlottedRecord<Harness>>),
     Lock(Vec<SlottedRecord<Lock>>),
-    Mixed(Vec<Record>),
+    RecordBatch(Vec<Record>),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct SlottedRecord<Record> {
-    slot: Slot<Record>,
-    record: Record,
+pub struct SlottedRecord<RecordValue> {
+    slot: Slot<RecordValue>,
+    record: RecordValue,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
@@ -51,8 +50,8 @@ pub struct SubscriptionAccepted {
 }
 
 impl ReplyPayload {
-    pub fn ok(outcome: CommitOutcome) -> Self {
-        Self::Ok(outcome)
+    pub fn commit_accepted(outcome: CommitOutcome) -> Self {
+        Self::CommitAccepted(outcome)
     }
 
     pub fn records(records: Records) -> Self {
@@ -60,8 +59,8 @@ impl ReplyPayload {
     }
 }
 
-impl<Record> SlottedRecord<Record> {
-    pub fn new(slot: Slot<Record>, record: Record) -> Self {
+impl<RecordValue> SlottedRecord<RecordValue> {
+    pub fn new(slot: Slot<RecordValue>, record: RecordValue) -> Self {
         Self { slot, record }
     }
 }

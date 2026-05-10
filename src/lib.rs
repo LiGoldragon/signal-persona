@@ -48,7 +48,7 @@ pub use reply::{
     CommitOutcome, Diagnostic, Records, Reply, ReplyPayload, SlottedRecord, SubscriptionAccepted,
 };
 pub use request::{
-    AtomicOperation, Mutation, Query, Record, Request, RequestPayload, Retraction, Slotted,
+    AtomicRecordChange, Mutation, Query, Record, Request, RequestPayload, Retraction, Slotted,
 };
 pub use signal_core::{
     AuthProof, FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, LocalOperatorProof,

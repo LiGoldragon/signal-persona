@@ -14,7 +14,7 @@ pub enum RequestPayload {
     Record(Record),
     Mutation(Mutation),
     Retraction(Retraction),
-    Atomic(Vec<AtomicOperation>),
+    Atomic(Vec<AtomicRecordChange>),
     Query(Query),
     Validation(Validation),
 }
@@ -53,7 +53,7 @@ pub enum Retraction {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum AtomicOperation {
+pub enum AtomicRecordChange {
     Record(Record),
     Mutation(Mutation),
     Retraction(Retraction),
@@ -62,14 +62,14 @@ pub enum AtomicOperation {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
 pub enum Validation {
     Mutation(Mutation),
-    Atomic(Vec<AtomicOperation>),
+    Atomic(Vec<AtomicRecordChange>),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub struct Slotted<Record> {
-    slot: Slot<Record>,
+pub struct Slotted<RecordValue> {
+    slot: Slot<RecordValue>,
     expected_revision: Option<Revision>,
-    record: Record,
+    record: RecordValue,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
@@ -94,7 +94,7 @@ impl RequestPayload {
         Self::Query(query)
     }
 
-    pub fn atomic(operations: Vec<AtomicOperation>) -> Self {
+    pub fn atomic(operations: Vec<AtomicRecordChange>) -> Self {
         Self::Atomic(operations)
     }
 }
@@ -109,8 +109,12 @@ impl Record {
     }
 }
 
-impl<Record> Slotted<Record> {
-    pub fn new(slot: Slot<Record>, expected_revision: Option<Revision>, record: Record) -> Self {
+impl<RecordValue> Slotted<RecordValue> {
+    pub fn new(
+        slot: Slot<RecordValue>,
+        expected_revision: Option<Revision>,
+        record: RecordValue,
+    ) -> Self {
         Self {
             slot,
             expected_revision,
@@ -118,11 +122,11 @@ impl<Record> Slotted<Record> {
         }
     }
 
-    pub fn slot(&self) -> &Slot<Record> {
+    pub fn slot(&self) -> &Slot<RecordValue> {
         &self.slot
     }
 
-    pub fn record(&self) -> &Record {
+    pub fn record(&self) -> &RecordValue {
         &self.record
     }
 }

@@ -1,5 +1,5 @@
 use signal_persona::{
-    AtomicOperation, AuthProof, CommitOutcome, Delivery, DeliveryState, Frame, FrameBody,
+    AtomicRecordChange, AuthProof, CommitOutcome, Delivery, DeliveryState, Frame, FrameBody,
     LocalOperatorProof, Lock, Message, MessageBody, Mutation, PrincipalName, Record, ReplyPayload,
     Request, RequestPayload, Retraction, RoleName, Scope, ScopeAccess, SemaVerb, Slot,
 };
@@ -35,15 +35,16 @@ fn message_assert_frame_round_trips_without_agent_minted_identity_or_sender() {
 
 #[test]
 fn commit_reply_returns_store_minted_message_slot() {
-    let reply =
-        signal_persona::Reply::operation(ReplyPayload::ok(CommitOutcome::Message(Slot::new(1024))));
+    let reply = signal_persona::Reply::operation(ReplyPayload::commit_accepted(
+        CommitOutcome::Message(Slot::new(1024)),
+    ));
     let frame = Frame::new(FrameBody::Reply(reply));
 
     let bytes = frame.encode_length_prefixed().expect("frame encodes");
     let decoded = Frame::decode_length_prefixed(&bytes).expect("frame decodes");
 
     match decoded.into_body() {
-        FrameBody::Reply(signal_persona::Reply::Operation(ReplyPayload::Ok(
+        FrameBody::Reply(signal_persona::Reply::Operation(ReplyPayload::CommitAccepted(
             CommitOutcome::Message(slot),
         ))) => {
             assert_eq!(slot.number(), 1024);
@@ -61,13 +62,13 @@ fn atomic_request_can_mix_records_mutations_and_retractions() {
         DeliveryState::Pending,
     );
     let request = RequestPayload::atomic(vec![
-        AtomicOperation::Record(Record::message(message)),
-        AtomicOperation::Mutation(Mutation::Delivery(signal_persona::Slotted::new(
+        AtomicRecordChange::Record(Record::message(message)),
+        AtomicRecordChange::Mutation(Mutation::Delivery(signal_persona::Slotted::new(
             Slot::new(12),
             None,
             delivery,
         ))),
-        AtomicOperation::Retraction(Retraction::Message(Slot::new(7))),
+        AtomicRecordChange::Retraction(Retraction::Message(Slot::new(7))),
     ]);
     let frame = Frame::new(FrameBody::Request(Request::atomic(request.clone())));
 

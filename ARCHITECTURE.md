@@ -8,6 +8,12 @@ envelope, handshake, auth proof, typed slots, revisions, and the
 closed twelve-verb request spine. This crate supplies Persona's
 domain records and query payloads.
 
+Relation sentence: many Persona components exchange typed Persona
+domain facts through one shared vocabulary; `signal-core` owns frame
+authority and the twelve verbs, component runtimes own behavior and
+state, and this crate owns only the record/query payload types that
+cross those relations.
+
 ---
 
 ## 0 · TL;DR
@@ -87,6 +93,11 @@ src/reply.rs          ReplyPayload payload enum
 src/store.rs          schema version records
 tests/                rkyv frame round trips
 ```
+
+Reply names stay relation-specific: successful commits return
+`ReplyPayload::CommitAccepted`, subscription setup returns
+`ReplyPayload::SubscriptionAccepted`, and typed projections use
+`Records` variants such as `Message`, `Delivery`, or `RecordBatch`.
 
 ## 4 · Boundaries
 
