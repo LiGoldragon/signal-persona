@@ -8,7 +8,7 @@ pub type Reply = signal_core::Reply<ReplyPayload>;
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
 pub enum ReplyPayload {
     CommitAccepted(CommitOutcome),
-    Records(Records),
+    RecordBatch(RecordBatch),
     Diagnostic(Diagnostic),
     SubscriptionAccepted(SubscriptionAccepted),
 }
@@ -23,13 +23,13 @@ pub enum CommitOutcome {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
-pub enum Records {
+pub enum RecordBatch {
     Message(Vec<SlottedRecord<Message>>),
     Delivery(Vec<SlottedRecord<Delivery>>),
     Binding(Vec<SlottedRecord<Binding>>),
     Harness(Vec<SlottedRecord<Harness>>),
     Lock(Vec<SlottedRecord<Lock>>),
-    RecordBatch(Vec<Record>),
+    Mixed(Vec<Record>),
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
@@ -54,8 +54,8 @@ impl ReplyPayload {
         Self::CommitAccepted(outcome)
     }
 
-    pub fn records(records: Records) -> Self {
-        Self::Records(records)
+    pub fn record_batch(batch: RecordBatch) -> Self {
+        Self::RecordBatch(batch)
     }
 }
 

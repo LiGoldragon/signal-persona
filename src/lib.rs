@@ -45,7 +45,8 @@ pub use observation::{
     WindowClosed,
 };
 pub use reply::{
-    CommitOutcome, Diagnostic, Records, Reply, ReplyPayload, SlottedRecord, SubscriptionAccepted,
+    CommitOutcome, Diagnostic, RecordBatch, Reply, ReplyPayload, SlottedRecord,
+    SubscriptionAccepted,
 };
 pub use request::{
     AtomicRecordChange, Mutation, Query, Record, Request, RequestPayload, Retraction, Slotted,
