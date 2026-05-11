@@ -8,9 +8,8 @@ use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use signal_core::signal_channel;
 
 pub use signal_core::{
-    AuthProof, FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, LocalOperatorProof,
-    ProtocolVersion, Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SemaVerb,
-    Slot,
+    FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, ProtocolVersion,
+    Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SemaVerb, Slot,
 };
 
 #[derive(

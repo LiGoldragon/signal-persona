@@ -11,9 +11,9 @@ every incoming connection by `ConnectionClass`, and mediates
 inter-engine routes between personas.
 
 This crate depends on `signal-core` for the frame envelope, handshake,
-auth proof, typed slots, revisions, and the closed twelve-verb request
-spine. This crate supplies the request, reply, record, query, and
-projection payloads for the engine-manager relation.
+typed slots, revisions, and the closed twelve-verb request spine. This
+crate supplies the request, reply, record, query, and projection
+payloads for the engine-manager relation.
 
 > **Scope: today, not eventually.** The twelve-verb spine defined in
 > `signal-core` is today's realization step toward eventual `Sema`
@@ -130,7 +130,7 @@ beneath those verbs. The verb set stays in `signal-core`.
 `ConnectionClassQuery` is primarily a debug/audit surface; the
 `persona` daemon mints `ConnectionClass` at the engine boundary
 during connection acceptance, and downstream components consume the
-class as a property of the connection's `AuthProof`. The explicit
+class as a property of the accepted connection context. The explicit
 query exists for introspection and architectural-truth tests.
 
 ---
@@ -273,7 +273,7 @@ time. The agent never supplies them in request payloads.
 |---|---|---|
 | `EngineId` (new engine) | persona daemon, on accept of `EngineCreate` | no — only in replies and subsequent queries |
 | `RouteId` | persona daemon, on `EngineRouteRequest` accept | no |
-| Caller identity / `ConnectionClass` | engine-boundary minting from `AuthProof` | no — never |
+| Caller identity / `ConnectionClass` | engine-boundary ingress context | no — never |
 | Transition timestamps | manager transition log | no |
 | `EngineGeneration` / `ComponentGeneration` | persona runtime | yes (in replies and queries; never agent-supplied) |
 | Engine owner | request payload to `EngineCreate` (gated by caller class) | yes |
@@ -357,8 +357,8 @@ This crate does not own:
   classification, or commit timestamp.
 - `ConnectionClass` is infrastructure-supplied at the engine
   boundary; it is never in a request payload (only in
-  `ConnectionClassQuery` replies, and as a property of the
-  `AuthProof` riding alongside the frame).
+  `ConnectionClassQuery` replies, and as a property of the accepted
+  connection context).
 - `EngineId` and `RouteId` are content-addressable and are minted by
   the persona daemon, never by the calling agent.
 
