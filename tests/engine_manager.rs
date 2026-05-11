@@ -8,7 +8,7 @@ use signal_persona::{
 
 #[test]
 fn engine_status_query_round_trips_through_length_prefixed_frame() {
-    let request = EngineRequest::EngineStatusQuery(EngineStatusQuery);
+    let request = EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine());
     let frame = Frame::new(FrameBody::Request(Request::match_records(request.clone())));
 
     let bytes = frame.encode_length_prefixed().expect("encode");

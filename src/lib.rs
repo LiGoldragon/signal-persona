@@ -91,7 +91,22 @@ pub struct EngineStatus {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
-pub struct EngineStatusQuery;
+pub enum EngineStatusScope {
+    WholeEngine,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EngineStatusQuery {
+    pub scope: EngineStatusScope,
+}
+
+impl EngineStatusQuery {
+    pub const fn whole_engine() -> Self {
+        Self {
+            scope: EngineStatusScope::WholeEngine,
+        }
+    }
+}
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
 pub struct ComponentStatusQuery {

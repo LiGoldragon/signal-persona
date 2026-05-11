@@ -50,7 +50,7 @@ length-prefixed rkyv archive. Top-level operation requests use
 `signal_core::Request<EngineRequest>`:
 
 ```text
-Request::Operation { verb: SemaVerb::Match,  payload: EngineRequest::EngineStatusQuery(...) }
+Request::Operation { verb: SemaVerb::Match,  payload: EngineRequest::EngineStatusQuery(WholeEngine) }
 Request::Operation { verb: SemaVerb::Match,  payload: EngineRequest::ComponentStatusQuery(...) }
 Request::Operation { verb: SemaVerb::Mutate, payload: EngineRequest::ComponentStartup(...) }
 ```
