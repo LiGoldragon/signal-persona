@@ -115,6 +115,11 @@ pub struct SupervisorActionAcceptance {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ComponentStatusMissing {
+    pub component: ComponentName,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SupervisorActionRejection {
     pub component: ComponentName,
     pub reason: SupervisorActionRejectionReason,
@@ -136,6 +141,7 @@ signal_channel! {
     reply EngineReply {
         EngineStatus(EngineStatus),
         ComponentStatus(ComponentStatus),
+        ComponentStatusMissing(ComponentStatusMissing),
         SupervisorActionAccepted(SupervisorActionAcceptance),
         SupervisorActionRejected(SupervisorActionRejection),
     }

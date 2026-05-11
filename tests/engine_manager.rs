@@ -1,9 +1,9 @@
 use signal_core::{FrameBody, Request, SemaVerb};
 use signal_persona::{
     ComponentDesiredState, ComponentHealth, ComponentKind, ComponentName, ComponentShutdown,
-    ComponentStartup, ComponentStatus, ComponentStatusQuery, EngineGeneration, EnginePhase,
-    EngineReply, EngineRequest, EngineStatus, EngineStatusQuery, Frame, SupervisorActionAcceptance,
-    SupervisorActionRejection, SupervisorActionRejectionReason,
+    ComponentStartup, ComponentStatus, ComponentStatusMissing, ComponentStatusQuery,
+    EngineGeneration, EnginePhase, EngineReply, EngineRequest, EngineStatus, EngineStatusQuery,
+    Frame, SupervisorActionAcceptance, SupervisorActionRejection, SupervisorActionRejectionReason,
 };
 
 #[test]
@@ -65,6 +65,26 @@ fn engine_status_reply_round_trips_with_component_health() {
             assert_eq!(decoded_reply, reply);
         }
         other => panic!("expected engine status reply, got {other:?}"),
+    }
+}
+
+#[test]
+fn missing_component_status_reply_round_trips_with_component_name() {
+    let reply = EngineReply::ComponentStatusMissing(ComponentStatusMissing {
+        component: ComponentName::new("persona-terminal"),
+    });
+    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
+        reply.clone(),
+    )));
+
+    let bytes = frame.encode_length_prefixed().expect("encode");
+    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
+
+    match decoded.into_body() {
+        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => {
+            assert_eq!(decoded_reply, reply);
+        }
+        other => panic!("expected missing component reply, got {other:?}"),
     }
 }
 

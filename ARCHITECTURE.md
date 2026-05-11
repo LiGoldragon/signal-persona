@@ -94,6 +94,7 @@ tests/version.rs           `signal-core` version compatibility witness
 Reply names stay relation-specific: status queries return
 `EngineReply::EngineStatus` or `EngineReply::ComponentStatus`, and supervisor
 mutations return `SupervisorActionAccepted` or `SupervisorActionRejected`.
+Missing components are reported as `ComponentStatusMissing` on query paths.
 
 ## 4 · Boundaries
 
