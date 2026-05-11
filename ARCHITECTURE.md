@@ -8,6 +8,12 @@ envelope, handshake, auth proof, typed slots, revisions, and the
 closed twelve-verb request spine. This crate supplies Persona's
 domain records and query payloads.
 
+> **Scope.** "Sema verb frame" here means today's twelve-verb spine
+> defined in `signal-core` (a today's-stack pragmatic substrate). The
+> eventual `Sema` framing is broader (universal medium for meaning);
+> today's twelve verbs are a realization step. See
+> `~/primary/ESSENCE.md` §"Today and eventually".
+
 Relation sentence: many Persona components exchange typed Persona
 domain facts through one shared vocabulary; `signal-core` owns frame
 authority and the twelve verbs, component runtimes own behavior and
