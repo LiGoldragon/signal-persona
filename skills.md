@@ -1,16 +1,19 @@
 # signal-persona skill
 
-This repository is a contract crate. Add only shared signal records, their
-encoding methods, and round-trip tests.
+This repository is the contract crate for talking to the top-level `persona`
+engine manager. Add only manager-surface signal records, their encoding
+methods, and round-trip tests.
 
 Rules for work here:
 
 - Keep runtime code out: no daemons, actors, tokio loops, redb stores, terminal
   adapters, or CLI parsing.
-- Add a record here only when two or more Persona components need to signal the
-  same typed value.
-- Persona owns record kinds and query payloads, not protocol verbs. The only
-  operation verbs are the twelve `signal-core` Sema verbs.
+- Add a record here only when it belongs to the `persona` engine manager's
+  status, control, query, projection, or subscription surface.
+- Component-to-component records belong in the relation-specific
+  `signal-persona-*` contract repo for that relation.
+- The manager contract owns record kinds and query payloads, not protocol
+  verbs. The only operation verbs are the twelve `signal-core` Sema verbs.
 - Do not add schema fields for infrastructure-minted values: record identity,
   sender principal, or commit time.
 - Keep request/reply/event enums closed and typed. Do not add `Unknown` to

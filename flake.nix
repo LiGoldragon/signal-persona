@@ -41,11 +41,11 @@
         checks = {
           build = craneLib.cargoBuild (commonArgs // { inherit cargoArtifacts; });
           test = craneLib.cargoTest (commonArgs // { inherit cargoArtifacts; });
-          test-frame = craneLib.cargoTest (
+          test-engine-manager = craneLib.cargoTest (
             commonArgs
             // {
               inherit cargoArtifacts;
-              cargoTestExtraArgs = "--test frame";
+              cargoTestExtraArgs = "--test engine_manager";
             }
           );
           test-version = craneLib.cargoTest (

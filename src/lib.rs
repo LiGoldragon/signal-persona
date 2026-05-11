@@ -1,61 +1,142 @@
-//! Persona signaling vocabulary over the shared Sema verb frame.
+//! Management contract for talking to the `persona` engine manager over Signal frames.
+//!
+//! This crate names one relation: clients talk to the top-level
+//! `persona` engine manager. Component-to-component contracts live
+//! in relation-specific `signal-persona-*` crates.
 
-pub mod authorization;
-pub mod binding;
-pub mod deadline;
-pub mod delivery;
-pub mod error;
-pub mod harness;
-pub mod identity;
-pub mod lock;
-pub mod message;
-pub mod observation;
-pub mod reply;
-pub mod request;
-pub mod store;
-pub mod stream;
-pub mod transition;
+use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+use signal_core::signal_channel;
 
-pub type Frame = signal_core::Frame<RequestPayload, ReplyPayload>;
-pub type FrameBody = signal_core::FrameBody<RequestPayload, ReplyPayload>;
-
-pub use authorization::{
-    Authorization, AuthorizationDecision, AuthorizationDecisionPattern, AuthorizationQuery,
-    AuthorizationTargetPattern,
-};
-pub use binding::{
-    Binding, BindingEndpointPattern, BindingQuery, BindingTargetPattern, HarnessEndpoint,
-};
-pub use deadline::{Deadline, DeadlineExpired, TimestampNanos};
-pub use delivery::{
-    BlockReason, Delivery, DeliveryMessagePattern, DeliveryQuery, DeliveryState,
-    DeliveryStatePattern, DeliveryTargetPattern,
-};
-pub use error::Error;
-pub use harness::{
-    Harness, HarnessKind, HarnessQuery, LifecyclePattern, LifecycleState, PrincipalPattern,
-};
-pub use identity::{ComponentName, PrincipalName};
-pub use lock::{
-    Lock, LockQuery, LockStatus, LockStatusPattern, RoleName, RolePattern, Scope, ScopeAccess,
-};
-pub use message::{Message, MessageBody, MessageQuery, MessageRecipientPattern, TextPattern};
-pub use observation::{
-    FocusObservation, HarnessObservation, InputBufferObservation, InputBufferState, Observation,
-    WindowClosed,
-};
-pub use reply::{
-    CommitOutcome, Diagnostic, RecordBatch, Reply, ReplyPayload, SlottedRecord,
-    SubscriptionAccepted,
-};
-pub use request::{
-    AtomicRecordChange, Mutation, Query, Record, Request, RequestPayload, Retraction, Slotted,
-};
 pub use signal_core::{
     AuthProof, FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, LocalOperatorProof,
     ProtocolVersion, Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SemaVerb,
     Slot,
 };
-pub use store::SchemaVersion;
-pub use stream::{StreamBytesPattern, StreamFrame, StreamFrameQuery, StreamHarnessPattern};
-pub use transition::{RecordSlot, Transition, TransitionQuery, TransitionSubjectPattern};
+
+#[derive(
+    Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash,
+)]
+pub struct ComponentName(String);
+
+impl ComponentName {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct EngineGeneration(u64);
+
+impl EngineGeneration {
+    pub const fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    pub const fn into_u64(self) -> u64 {
+        self.0
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnginePhase {
+    Starting,
+    Running,
+    Degraded,
+    Draining,
+    Stopped,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComponentKind {
+    Mind,
+    Router,
+    Message,
+    System,
+    Harness,
+    Terminal,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComponentDesiredState {
+    Running,
+    Stopped,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ComponentHealth {
+    Starting,
+    Running,
+    Degraded,
+    Stopped,
+    Failed,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ComponentStatus {
+    pub name: ComponentName,
+    pub kind: ComponentKind,
+    pub desired_state: ComponentDesiredState,
+    pub health: ComponentHealth,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct EngineStatus {
+    pub generation: EngineGeneration,
+    pub phase: EnginePhase,
+    pub components: Vec<ComponentStatus>,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EngineStatusQuery;
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ComponentStatusQuery {
+    pub component: ComponentName,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ComponentStartup {
+    pub component: ComponentName,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct ComponentShutdown {
+    pub component: ComponentName,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct SupervisorActionAcceptance {
+    pub component: ComponentName,
+    pub desired_state: ComponentDesiredState,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub struct SupervisorActionRejection {
+    pub component: ComponentName,
+    pub reason: SupervisorActionRejectionReason,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub enum SupervisorActionRejectionReason {
+    ComponentNotManaged,
+    ComponentAlreadyInDesiredState,
+}
+
+signal_channel! {
+    request EngineRequest {
+        EngineStatusQuery(EngineStatusQuery),
+        ComponentStatusQuery(ComponentStatusQuery),
+        ComponentStartup(ComponentStartup),
+        ComponentShutdown(ComponentShutdown),
+    }
+    reply EngineReply {
+        EngineStatus(EngineStatus),
+        ComponentStatus(ComponentStatus),
+        SupervisorActionAccepted(SupervisorActionAcceptance),
+        SupervisorActionRejected(SupervisorActionRejection),
+    }
+}
