@@ -3,8 +3,9 @@ use signal_core::{FrameBody, Request, SemaVerb};
 use signal_persona::{
     ComponentDesiredState, ComponentHealth, ComponentKind, ComponentName, ComponentShutdown,
     ComponentStartup, ComponentStatus, ComponentStatusMissing, ComponentStatusQuery,
-    EngineGeneration, EnginePhase, EngineReply, EngineRequest, EngineStatus, EngineStatusQuery,
-    Frame, SupervisorActionAcceptance, SupervisorActionRejection, SupervisorActionRejectionReason,
+    EngineGeneration, EngineOperationKind, EnginePhase, EngineReply, EngineRequest, EngineStatus,
+    EngineStatusQuery, Frame, SupervisorActionAcceptance, SupervisorActionRejection,
+    SupervisorActionRejectionReason,
 };
 
 #[test]
@@ -150,6 +151,52 @@ fn engine_channel_request_reply_round_trip_through_nota() {
     let recovered_reply = EngineReply::decode(&mut reply_decoder).expect("decode engine reply");
     assert_eq!(recovered_reply, reply);
     assert_eq!(reply_text, "(ComponentStatusMissing persona-terminal)");
+}
+
+#[test]
+fn engine_request_exposes_contract_owned_operation_kind() {
+    let cases = [
+        (
+            EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine()),
+            EngineOperationKind::EngineStatusQuery,
+        ),
+        (
+            EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
+                component: ComponentName::new("persona-router"),
+            }),
+            EngineOperationKind::ComponentStatusQuery,
+        ),
+        (
+            EngineRequest::ComponentStartup(ComponentStartup {
+                component: ComponentName::new("persona-router"),
+            }),
+            EngineOperationKind::ComponentStartup,
+        ),
+        (
+            EngineRequest::ComponentShutdown(ComponentShutdown {
+                component: ComponentName::new("persona-router"),
+            }),
+            EngineOperationKind::ComponentShutdown,
+        ),
+    ];
+
+    for (request, operation) in cases {
+        assert_eq!(request.operation_kind(), operation);
+    }
+}
+
+#[test]
+fn engine_operation_kind_round_trips_through_nota_text() {
+    let mut encoder = Encoder::new();
+    EngineOperationKind::ComponentStartup
+        .encode(&mut encoder)
+        .expect("encode operation kind");
+    let text = encoder.into_string();
+    let mut decoder = Decoder::new(&text);
+    let recovered = EngineOperationKind::decode(&mut decoder).expect("decode operation kind");
+
+    assert_eq!(recovered, EngineOperationKind::ComponentStartup);
+    assert_eq!(text, "ComponentStartup");
 }
 
 #[test]

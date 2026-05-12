@@ -146,6 +146,16 @@ pub struct ComponentShutdown {
     pub component: ComponentName,
 }
 
+#[derive(
+    Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq, Hash,
+)]
+pub enum EngineOperationKind {
+    EngineStatusQuery,
+    ComponentStatusQuery,
+    ComponentStartup,
+    ComponentShutdown,
+}
+
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct SupervisorActionAcceptance {
     pub component: ComponentName,
@@ -182,5 +192,16 @@ signal_channel! {
         ComponentStatusMissing(ComponentStatusMissing),
         SupervisorActionAccepted(SupervisorActionAcceptance),
         SupervisorActionRejected(SupervisorActionRejection),
+    }
+}
+
+impl EngineRequest {
+    pub fn operation_kind(&self) -> EngineOperationKind {
+        match self {
+            Self::EngineStatusQuery(_) => EngineOperationKind::EngineStatusQuery,
+            Self::ComponentStatusQuery(_) => EngineOperationKind::ComponentStatusQuery,
+            Self::ComponentStartup(_) => EngineOperationKind::ComponentStartup,
+            Self::ComponentShutdown(_) => EngineOperationKind::ComponentShutdown,
+        }
     }
 }
