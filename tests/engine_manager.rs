@@ -1,3 +1,4 @@
+use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
 use signal_core::{FrameBody, Request, SemaVerb};
 use signal_persona::{
     ComponentDesiredState, ComponentHealth, ComponentKind, ComponentName, ComponentShutdown,
@@ -93,6 +94,32 @@ fn engine_status_reply_round_trips_message_proxy_kind() {
         }
         other => panic!("expected engine status reply, got {other:?}"),
     }
+}
+
+#[test]
+fn engine_status_contract_payload_round_trips_through_nota() {
+    let status = EngineStatus {
+        generation: EngineGeneration::new(9),
+        phase: EnginePhase::Running,
+        components: vec![ComponentStatus {
+            name: ComponentName::new("persona-message"),
+            kind: ComponentKind::MessageProxy,
+            desired_state: ComponentDesiredState::Running,
+            health: ComponentHealth::Running,
+        }],
+    };
+
+    let mut encoder = Encoder::new();
+    status.encode(&mut encoder).expect("encode engine status");
+    let encoded = encoder.into_string();
+    let mut decoder = Decoder::new(&encoded);
+    let recovered = EngineStatus::decode(&mut decoder).expect("decode engine status");
+
+    assert_eq!(recovered, status);
+    assert_eq!(
+        encoded,
+        "(EngineStatus 9 Running [(ComponentStatus persona-message MessageProxy Running Running)])"
+    );
 }
 
 #[test]

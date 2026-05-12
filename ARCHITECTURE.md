@@ -3,10 +3,11 @@
 `signal-persona` is the typed Signal contract for clients talking to the
 top-level `persona` engine manager.
 
-This crate owns only wire payload records, closed request/reply enums, frame
-aliases, and round-trip tests. Runtime actors, storage, daemon startup, CLI
-parsing, terminal effects, routing policy, and text projection live outside
-this crate.
+This crate owns the manager payload records, closed request/reply enums, frame
+aliases, and round-trip tests. Contract records carry both rkyv wire derives and
+NOTA text derives on the same types. Runtime actors, storage, daemon startup,
+CLI parsing, terminal effects, routing policy, and NOTA surface policy live
+outside this crate.
 
 ## Relation
 
@@ -126,7 +127,8 @@ This crate owns:
 - `Frame` / `FrameBody` aliases over `signal-core`.
 - Manager status and component lifecycle payload records.
 - Closed status, health, phase, and rejection enums.
-- rkyv round-trip tests for the manager contract.
+- rkyv frame round-trip tests and NOTA text round-trip tests for the manager
+  contract.
 
 This crate does not own:
 
@@ -135,7 +137,7 @@ This crate does not own:
 - Engine socket layout or filesystem permissions.
 - Auth validation or credential proof.
 - Router, terminal, harness, system, message, or mind component contracts.
-- Nexus or NOTA command-line text.
+- Command-line parsing or policy for where NOTA text is accepted or printed.
 - Inter-engine route policy.
 
 ## Constraints
@@ -146,6 +148,7 @@ This crate does not own:
 | Every request variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
 | Every reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
 | Message proxy is named as a closed component kind | `engine_status_reply_round_trips_message_proxy_kind` |
+| Contract payload values round-trip through NOTA without schema mirrors | `engine_status_contract_payload_round_trips_through_nota` |
 | Requests carry no caller identity, class, proof, sender, timestamp, or minted engine id | source review in `src/lib.rs` |
 | Closed enums have no `Unknown` escape variant | source review in `src/lib.rs` |
 | Contract compatibility with `signal-core` is explicit | `nix flake check .#test-version` |
@@ -154,7 +157,7 @@ This crate does not own:
 
 ```text
 src/lib.rs              manager payload records and signal_channel! declaration
-tests/engine_manager.rs frame round trips for requests, replies, and component kinds
+tests/engine_manager.rs frame and NOTA round trips for requests, replies, and component kinds
 tests/version.rs        signal-core version witness
 ```
 

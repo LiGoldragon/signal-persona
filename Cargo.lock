@@ -258,6 +258,7 @@ dependencies = [
 name = "signal-persona"
 version = "0.1.0"
 dependencies = [
+ "nota-codec",
  "rkyv",
  "signal-core",
 ]

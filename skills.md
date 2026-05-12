@@ -20,5 +20,6 @@ Rules for work here:
   avoid coordinated schema work.
 - Tests should encode and decode real records through `Frame`; do not prove
   behavior by grepping IDs or string prefixes.
-- Human-facing NOTA belongs in boundary crates such as `persona-message`, not in
-  this crate.
+- Contract values derive their NOTA text projection here beside their rkyv wire
+  shape. Boundary crates decide where that NOTA is accepted or printed; they do
+  not mirror these types just to make them readable.
