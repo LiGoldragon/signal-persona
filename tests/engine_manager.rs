@@ -123,6 +123,36 @@ fn engine_status_contract_payload_round_trips_through_nota() {
 }
 
 #[test]
+fn engine_channel_request_reply_round_trip_through_nota() {
+    let request = EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
+        component: ComponentName::new("persona-router"),
+    });
+    let mut request_encoder = Encoder::new();
+    request
+        .encode(&mut request_encoder)
+        .expect("encode engine request");
+    let request_text = request_encoder.into_string();
+    let mut request_decoder = Decoder::new(&request_text);
+    let recovered_request =
+        EngineRequest::decode(&mut request_decoder).expect("decode engine request");
+    assert_eq!(recovered_request, request);
+    assert_eq!(request_text, "(ComponentStatusQuery persona-router)");
+
+    let reply = EngineReply::ComponentStatusMissing(ComponentStatusMissing {
+        component: ComponentName::new("persona-terminal"),
+    });
+    let mut reply_encoder = Encoder::new();
+    reply
+        .encode(&mut reply_encoder)
+        .expect("encode engine reply");
+    let reply_text = reply_encoder.into_string();
+    let mut reply_decoder = Decoder::new(&reply_text);
+    let recovered_reply = EngineReply::decode(&mut reply_decoder).expect("decode engine reply");
+    assert_eq!(recovered_reply, reply);
+    assert_eq!(reply_text, "(ComponentStatusMissing persona-terminal)");
+}
+
+#[test]
 fn missing_component_status_reply_round_trips_with_component_name() {
     let reply = EngineReply::ComponentStatusMissing(ComponentStatusMissing {
         component: ComponentName::new("persona-terminal"),
