@@ -69,6 +69,33 @@ fn engine_status_reply_round_trips_with_component_health() {
 }
 
 #[test]
+fn engine_status_reply_round_trips_message_proxy_kind() {
+    let reply = EngineReply::EngineStatus(EngineStatus {
+        generation: EngineGeneration::new(8),
+        phase: EnginePhase::Running,
+        components: vec![ComponentStatus {
+            name: ComponentName::new("persona-message"),
+            kind: ComponentKind::MessageProxy,
+            desired_state: ComponentDesiredState::Running,
+            health: ComponentHealth::Running,
+        }],
+    });
+    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
+        reply.clone(),
+    )));
+
+    let bytes = frame.encode_length_prefixed().expect("encode");
+    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
+
+    match decoded.into_body() {
+        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => {
+            assert_eq!(decoded_reply, reply);
+        }
+        other => panic!("expected engine status reply, got {other:?}"),
+    }
+}
+
+#[test]
 fn missing_component_status_reply_round_trips_with_component_name() {
     let reply = EngineReply::ComponentStatusMissing(ComponentStatusMissing {
         component: ComponentName::new("persona-terminal"),

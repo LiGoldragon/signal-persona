@@ -53,7 +53,7 @@ pub enum EnginePhase {
 pub enum ComponentKind {
     Mind,
     Router,
-    Message,
+    MessageProxy,
     System,
     Harness,
     Terminal,
