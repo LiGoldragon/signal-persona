@@ -33,7 +33,16 @@ authorization proof, connection class, sender, or timestamp.
 
 ## Current Surface
 
-The implemented channel is intentionally narrow:
+The implemented channel is intentionally narrow. This crate
+carries **two relations** sharing one `signal_channel!`
+declaration: the manager↔CLI engine-catalog relation, and
+the manager↔supervised-component supervision relation. Per
+`~/primary/skills/contract-repo.md` §"Contracts name a
+component's wire surface", multiple relations within one
+contract are fine; both relations cross the engine manager's
+wire.
+
+**Engine catalog / CLI surface:**
 
 | Request | Sema verb | Reply |
 |---|---|---|
@@ -41,6 +50,21 @@ The implemented channel is intentionally narrow:
 | `ComponentStatusQuery` | `Match` | `ComponentStatus` or `ComponentStatusMissing` |
 | `ComponentStartup` | `Mutate` | `SupervisorActionAccepted` or `SupervisorActionRejected` |
 | `ComponentShutdown` | `Mutate` | `SupervisorActionAccepted` or `SupervisorActionRejected` |
+
+**Supervision relation** (manager-to-supervised-component;
+shape per `~/primary/reports/designer/142-supervision-in-signal-persona-no-message-proxy-daemon.md` §2.2):
+
+| Request | Sema verb | Reply |
+|---|---|---|
+| `ComponentHello` | `Match` | `ComponentIdentity` (name, kind, supervision protocol version, last startup error) |
+| `ComponentReadinessQuery` | `Match` | `ComponentReady { since }` or `ComponentNotReady { reason }` |
+| `ComponentHealthQuery` | `Match` | `ComponentHealth` |
+| `GracefulStopRequest` | `Mutate` | `GracefulStopAck { drain_completed_at }` |
+
+Implementation lands per operator bead per /142 §8. The
+supervision relation **does not** become a generic command
+bus — it carries lifecycle facts only; domain operations
+stay on the relevant `signal-persona-*` domain contracts.
 
 `signal-core` owns the frame envelope and the twelve Sema verbs. This crate
 owns the manager payloads under those verbs.
@@ -56,11 +80,17 @@ names, or future supervised component instances.
 ```text
 Mind
 Router
-MessageProxy
 System
 Harness
 Terminal
 ```
+
+There is no `MessageProxy` variant. The user-writable
+ingress socket is bound by `persona-router` directly
+(`router-public.sock`, mode 0660); the `message` binary in
+`persona-message` is a CLI client of that socket, not a
+supervised process. See
+`~/primary/reports/designer/142-supervision-in-signal-persona-no-message-proxy-daemon.md`.
 
 `ComponentStatus` combines both:
 
@@ -147,7 +177,7 @@ This crate does not own:
 | The channel has one `signal_channel!` declaration | source review in `src/lib.rs` |
 | Every request variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
 | Every reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
-| Message proxy is named as a closed component kind | `engine_status_reply_round_trips_message_proxy_kind` |
+| Supervision requests carry no domain payload (no MessageBody, RoleClaim, TerminalInput) | `signal-persona/tests/supervision_no_domain_payload.rs` (planned per /142 §2.3) |
 | Contract payload values round-trip through NOTA without schema mirrors | `engine_status_contract_payload_round_trips_through_nota` |
 | Requests carry no caller identity, class, proof, sender, timestamp, or minted engine id | source review in `src/lib.rs` |
 | Closed enums have no `Unknown` escape variant | source review in `src/lib.rs` |
