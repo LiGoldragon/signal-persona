@@ -82,6 +82,16 @@ whose behavior is not yet built, it replies with
 — a typed answer, not a panic. The same convention applies
 across every `signal-persona-*` contract.
 
+**Supervision `Unimplemented` is constrained** (per
+`~/primary/reports/designer/144-prototype-architecture-final-cleanup-after-da36.md` §3.1):
+`SupervisionUnimplemented` is **only** for future
+supervision-relation variants beyond the current four-op surface.
+The four prototype variants — `ComponentHello`,
+`ComponentReadinessQuery`, `ComponentHealthQuery`,
+`GracefulStopRequest` — are **what makes a process a Persona
+component**. A daemon that replies `SupervisionUnimplemented` to
+any of those four fails the prototype readiness witness.
+
 `signal-core` owns the frame envelope and the twelve Sema verbs. This crate
 owns the manager payloads under those verbs.
 
@@ -168,9 +178,27 @@ SupervisionUnimplementedReason
 
 Per
 `~/primary/reports/designer/143-prototype-readiness-gap-audit.md`
-§4.1: the engine manager mints a `SpawnEnvelope` for each
+§4.1 and
+`~/primary/reports/designer/144-prototype-architecture-final-cleanup-after-da36.md` §2.3:
+the engine manager mints a `SpawnEnvelope` for each
 supervised child at spawn time; the child reads its envelope
 at startup and binds the named socket at the named mode.
+
+**Two distinct records** carry the spawn information; only the
+`SpawnEnvelope` is on the wire:
+
+- `signal-persona::SpawnEnvelope` (this crate, the typed wire form):
+  child-readable subset only — engine_id, component_kind,
+  component_name, state_dir, socket_path, socket_mode,
+  peer_sockets, manager_socket, supervision_protocol_version.
+- `persona::launch::ResolvedComponentLaunch` (manager-internal Rust
+  type, not in this crate): adds executable path, argv,
+  environment, working directory, process-group mode, restart policy,
+  and embeds the `SpawnEnvelope` as a field. `DirectProcessLauncher`
+  consumes `ResolvedComponentLaunch`, forks/execs, writes the
+  embedded envelope to the per-component file. The child reads only
+  the envelope — never the executable path, argv, or environment of
+  its own launch.
 
 ```text
 SpawnEnvelope
@@ -199,6 +227,23 @@ crate's typed decoder at startup, binds its socket, applies
 the mode, and proceeds. Per ESSENCE §"Infrastructure mints
 identity, time, and sender" — the child does not invent its
 socket path or component name.
+
+**State directory for stateless components** (per /144 §3.2): the
+`state_dir` field is always populated; stateless components
+(today: `persona-message-daemon`, `persona-system` in skeleton
+mode) leave the directory empty and **do not open a redb file
+until they own durable state**. Manager prepares the directory at
+envelope-mint time; child opens it only if it has state to
+persist.
+
+**`SpawnEnvelope.component_name` naming note**: the field is typed
+as `signal-persona-auth::ComponentName` (closed enum of first-stack
+principals), **not** the open `signal-persona::ComponentName`
+instance newtype. The two crates currently share the type name —
+operator's bead tracks the rename to
+`signal-persona-auth::ComponentPrincipal` /
+`signal-persona::ComponentInstanceName`. Until that rename lands,
+this field carries the **closed enum** form.
 
 ## Retired Vocabulary
 
