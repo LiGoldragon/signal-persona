@@ -6,7 +6,7 @@
 //! Component-to-component contracts live in relation-specific
 //! `signal-persona-*` crates.
 
-use nota_codec::{NotaEnum, NotaRecord, NotaTransparent};
+use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode, NotaEnum, NotaRecord, NotaTransparent};
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use signal_core::signal_channel;
 
@@ -173,6 +173,45 @@ impl SupervisionProtocolVersion {
 }
 
 #[derive(
+    Archive, RkyvSerialize, RkyvDeserialize, NotaTransparent, Debug, Clone, PartialEq, Eq, Hash,
+)]
+pub struct WirePath(String);
+
+impl WirePath {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+#[derive(
+    Archive,
+    RkyvSerialize,
+    RkyvDeserialize,
+    NotaTransparent,
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+)]
+pub struct SocketMode(u32);
+
+impl SocketMode {
+    pub const fn new(value: u32) -> Self {
+        Self(value)
+    }
+
+    pub const fn into_u32(self) -> u32 {
+        self.0
+    }
+}
+
+#[derive(
     Archive,
     RkyvSerialize,
     RkyvDeserialize,
@@ -260,6 +299,99 @@ pub struct GracefulStopAcknowledgement {
     pub drain_completed_at: Option<TimestampNanos>,
 }
 
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DependencyKind {
+    PeerComponent,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResourceKind {
+    ManagerSocket,
+    SocketPath,
+    StateDirectory,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SupervisionUnimplementedReason {
+    NotInPrototypeScope,
+    DependencyMissing(DependencyKind),
+    ResourceUnavailable(ResourceKind),
+}
+
+impl NotaEncode for SupervisionUnimplementedReason {
+    fn encode(&self, encoder: &mut Encoder) -> nota_codec::Result<()> {
+        match self {
+            Self::NotInPrototypeScope => {
+                encoder.start_record("NotInPrototypeScope")?;
+                encoder.end_record()
+            }
+            Self::DependencyMissing(dependency) => {
+                encoder.start_record("DependencyMissing")?;
+                dependency.encode(encoder)?;
+                encoder.end_record()
+            }
+            Self::ResourceUnavailable(resource) => {
+                encoder.start_record("ResourceUnavailable")?;
+                resource.encode(encoder)?;
+                encoder.end_record()
+            }
+        }
+    }
+}
+
+impl NotaDecode for SupervisionUnimplementedReason {
+    fn decode(decoder: &mut Decoder<'_>) -> nota_codec::Result<Self> {
+        let head = decoder.peek_record_head()?;
+        match head.as_str() {
+            "NotInPrototypeScope" => {
+                decoder.expect_record_head("NotInPrototypeScope")?;
+                decoder.expect_record_end()?;
+                Ok(Self::NotInPrototypeScope)
+            }
+            "DependencyMissing" => {
+                decoder.expect_record_head("DependencyMissing")?;
+                let dependency = DependencyKind::decode(decoder)?;
+                decoder.expect_record_end()?;
+                Ok(Self::DependencyMissing(dependency))
+            }
+            "ResourceUnavailable" => {
+                decoder.expect_record_head("ResourceUnavailable")?;
+                let resource = ResourceKind::decode(decoder)?;
+                decoder.expect_record_end()?;
+                Ok(Self::ResourceUnavailable(resource))
+            }
+            other => Err(nota_codec::Error::UnknownKindForVerb {
+                verb: "SupervisionUnimplementedReason",
+                got: other.to_string(),
+            }),
+        }
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct SupervisionUnimplemented {
+    pub reason: SupervisionUnimplementedReason,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct PeerSocket {
+    pub component_name: signal_persona_auth::ComponentName,
+    pub socket_path: WirePath,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct SpawnEnvelope {
+    pub engine_id: signal_persona_auth::EngineId,
+    pub component_kind: ComponentKind,
+    pub component_name: signal_persona_auth::ComponentName,
+    pub state_dir: WirePath,
+    pub socket_path: WirePath,
+    pub socket_mode: SocketMode,
+    pub peer_sockets: Vec<PeerSocket>,
+    pub manager_socket: WirePath,
+    pub supervision_protocol_version: SupervisionProtocolVersion,
+}
+
 #[derive(
     Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq, Hash,
 )]
@@ -323,7 +455,7 @@ pub mod supervision {
     use super::{
         ComponentHealthQuery, ComponentHealthReport, ComponentHello, ComponentIdentity,
         ComponentNotReady, ComponentReadinessQuery, ComponentReady, GracefulStopAcknowledgement,
-        GracefulStopRequest, SupervisionOperationKind,
+        GracefulStopRequest, SupervisionOperationKind, SupervisionUnimplemented,
     };
     use signal_core::signal_channel;
 
@@ -340,6 +472,7 @@ pub mod supervision {
             ComponentNotReady(ComponentNotReady),
             ComponentHealthReport(ComponentHealthReport),
             GracefulStopAcknowledgement(GracefulStopAcknowledgement),
+            SupervisionUnimplemented(SupervisionUnimplemented),
         }
     }
 

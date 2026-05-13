@@ -5,11 +5,12 @@ use signal_persona::{
     ComponentHello, ComponentIdentity, ComponentKind, ComponentName, ComponentNotReady,
     ComponentNotReadyReason, ComponentReadinessQuery, ComponentReady, ComponentShutdown,
     ComponentStartup, ComponentStartupError, ComponentStatus, ComponentStatusMissing,
-    ComponentStatusQuery, EngineGeneration, EngineOperationKind, EnginePhase, EngineReply,
-    EngineRequest, EngineStatus, EngineStatusQuery, Frame, GracefulStopAcknowledgement,
-    GracefulStopRequest, SupervisionFrame, SupervisionOperationKind, SupervisionProtocolVersion,
-    SupervisionReply, SupervisionRequest, SupervisorActionAcceptance, SupervisorActionRejection,
-    SupervisorActionRejectionReason, TimestampNanos,
+    ComponentStatusQuery, DependencyKind, EngineGeneration, EngineOperationKind, EnginePhase,
+    EngineReply, EngineRequest, EngineStatus, EngineStatusQuery, Frame,
+    GracefulStopAcknowledgement, GracefulStopRequest, ResourceKind, SupervisionFrame,
+    SupervisionOperationKind, SupervisionProtocolVersion, SupervisionReply, SupervisionRequest,
+    SupervisionUnimplemented, SupervisionUnimplementedReason, SupervisorActionAcceptance,
+    SupervisorActionRejection, SupervisorActionRejectionReason, TimestampNanos,
 };
 
 fn round_trip_supervision_request(
@@ -411,6 +412,9 @@ fn supervision_replies_round_trip_through_length_prefixed_frames() {
         SupervisionReply::GracefulStopAcknowledgement(GracefulStopAcknowledgement {
             drain_completed_at: Some(TimestampNanos::new(200)),
         }),
+        SupervisionReply::SupervisionUnimplemented(SupervisionUnimplemented {
+            reason: SupervisionUnimplementedReason::NotInPrototypeScope,
+        }),
     ];
 
     for reply in replies {
@@ -454,6 +458,53 @@ fn supervision_payloads_round_trip_through_nota_text() {
     assert_eq!(
         reply_text,
         "(ComponentIdentity persona-router Router 1 StoreOpenFailed)"
+    );
+}
+
+#[test]
+fn supervision_unimplemented_round_trips_through_nota_text() {
+    let cases = [
+        (
+            SupervisionUnimplementedReason::NotInPrototypeScope,
+            "(NotInPrototypeScope)",
+        ),
+        (
+            SupervisionUnimplementedReason::DependencyMissing(DependencyKind::PeerComponent),
+            "(DependencyMissing PeerComponent)",
+        ),
+        (
+            SupervisionUnimplementedReason::ResourceUnavailable(ResourceKind::SocketPath),
+            "(ResourceUnavailable SocketPath)",
+        ),
+    ];
+
+    for (reason, expected_text) in cases {
+        let mut encoder = Encoder::new();
+        reason
+            .encode(&mut encoder)
+            .expect("encode unimplemented reason");
+        let text = encoder.into_string();
+        let mut decoder = Decoder::new(&text);
+        let recovered = SupervisionUnimplementedReason::decode(&mut decoder)
+            .expect("decode unimplemented reason");
+
+        assert_eq!(recovered, reason);
+        assert_eq!(text, expected_text);
+    }
+
+    let reply = SupervisionReply::SupervisionUnimplemented(SupervisionUnimplemented {
+        reason: SupervisionUnimplementedReason::DependencyMissing(DependencyKind::PeerComponent),
+    });
+    let mut encoder = Encoder::new();
+    reply.encode(&mut encoder).expect("encode reply");
+    let text = encoder.into_string();
+    let mut decoder = Decoder::new(&text);
+    let recovered = SupervisionReply::decode(&mut decoder).expect("decode reply");
+
+    assert_eq!(recovered, reply);
+    assert_eq!(
+        text,
+        "(SupervisionUnimplemented (DependencyMissing PeerComponent))"
     );
 }
 

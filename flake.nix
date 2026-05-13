@@ -62,6 +62,20 @@
               cargoTestExtraArgs = "--test engine_manager supervision_requests_carry_no_domain_payload -- --exact";
             }
           );
+          test-supervision-unimplemented-round-trip = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test engine_manager supervision_unimplemented_round_trips_through_nota_text -- --exact";
+            }
+          );
+          test-spawn-envelope = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test spawn_envelope";
+            }
+          );
           test-version = craneLib.cargoTest (
             commonArgs
             // {
