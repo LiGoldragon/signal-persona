@@ -34,13 +34,18 @@ authorization proof, connection class, sender, or timestamp.
 ## Current Surface
 
 The implemented channel is intentionally narrow. This crate
-carries **two relations** sharing one `signal_channel!`
-declaration: the manager↔CLI engine-catalog relation, and
-the manager↔supervised-component supervision relation. Per
+carries **two relations, each with its own closed root family
+and its own `signal_channel!` invocation**: the manager↔CLI
+engine-catalog relation (`EngineRequest` / `EngineReply`)
+and the manager↔supervised-component supervision relation
+(`SupervisionRequest` / `SupervisionReply`). Per
 `~/primary/skills/contract-repo.md` §"Contracts name a
-component's wire surface", multiple relations within one
-contract are fine; both relations cross the engine manager's
-wire.
+component's wire surface" — *"a multi-relation contract
+crate (one component, multiple relations) has one root
+family per relation, not one crate-wide enum"* — the two
+relations stay sharply separated so CLI-oriented surface
+cannot accidentally grow child-lifecycle verbs and vice
+versa.
 
 **Engine catalog / CLI surface:**
 
@@ -80,17 +85,18 @@ names, or future supervised component instances.
 ```text
 Mind
 Router
+Message
 System
 Harness
 Terminal
 ```
 
-There is no `MessageProxy` variant. The user-writable
-ingress socket is bound by `persona-router` directly
-(`router-public.sock`, mode 0660); the `message` binary in
-`persona-message` is a CLI client of that socket, not a
-supervised process. See
-`~/primary/reports/designer/142-supervision-in-signal-persona-no-message-proxy-daemon.md`.
+The `Message` variant (renamed from the retired
+`MessageProxy`) names the engine's supervised message-ingress
+component. The "proxy" name retires from variant, socket,
+binary, and env-var vocabulary; the supervised daemon binary
+is `persona-message-daemon`. Per
+`~/primary/reports/designer/142-supervision-in-signal-persona-no-message-proxy-daemon.md` §3.
 
 `ComponentStatus` combines both:
 
