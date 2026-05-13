@@ -62,14 +62,14 @@ shape per `~/primary/reports/designer/142-supervision-in-signal-persona-no-messa
 | Request | Sema verb | Reply |
 |---|---|---|
 | `ComponentHello` | `Match` | `ComponentIdentity` (name, kind, supervision protocol version, last startup error) |
-| `ComponentReadinessQuery` | `Match` | `ComponentReady { since }` or `ComponentNotReady { reason }` |
-| `ComponentHealthQuery` | `Match` | `ComponentHealth` |
-| `GracefulStopRequest` | `Mutate` | `GracefulStopAck { drain_completed_at }` |
+| `ComponentReadinessQuery` | `Match` | `ComponentReady { component_started_at }` or `ComponentNotReady { reason }` |
+| `ComponentHealthQuery` | `Match` | `ComponentHealthReport { health }` |
+| `GracefulStopRequest` | `Mutate` | `GracefulStopAcknowledgement { drain_completed_at }` |
 
-Implementation lands per operator bead per /142 §8. The
-supervision relation **does not** become a generic command
-bus — it carries lifecycle facts only; domain operations
-stay on the relevant `signal-persona-*` domain contracts.
+The supervision relation **does not** become a generic
+command bus - it carries lifecycle facts only; domain
+operations stay on the relevant `signal-persona-*` domain
+contracts.
 
 `signal-core` owns the frame envelope and the twelve Sema verbs. This crate
 owns the manager payloads under those verbs.
@@ -130,6 +130,22 @@ ComponentHealth
 SupervisorActionRejectionReason
   | ComponentNotManaged
   | ComponentAlreadyInDesiredState
+
+SupervisionProtocolVersion
+  | u16
+
+TimestampNanos
+  | u64
+
+ComponentStartupError
+  | SocketBindFailed
+  | StoreOpenFailed
+  | EnvelopeIncomplete
+
+ComponentNotReadyReason
+  | NotYetBound
+  | AwaitingDependency
+  | RecoveringFromCrash
 ```
 
 ## Retired Vocabulary
@@ -160,7 +176,10 @@ stale prose.
 This crate owns:
 
 - `EngineRequest` and `EngineReply`, declared with `signal_channel!`.
+- `SupervisionRequest` and `SupervisionReply`, declared with a separate
+  `signal_channel!`.
 - `Frame` / `FrameBody` aliases over `signal-core`.
+- `SupervisionFrame` / `SupervisionFrameBody` aliases over `signal-core`.
 - Manager status and component lifecycle payload records.
 - Closed status, health, phase, and rejection enums.
 - rkyv frame round-trip tests and NOTA text round-trip tests for the manager
@@ -180,10 +199,11 @@ This crate does not own:
 
 | Constraint | Witness |
 |---|---|
-| The channel has one `signal_channel!` declaration | source review in `src/lib.rs` |
-| Every request variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
-| Every reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
-| Supervision requests carry no domain payload (no MessageBody, RoleClaim, TerminalInput) | `signal-persona/tests/supervision_no_domain_payload.rs` (planned per /142 §2.3) |
+| Each named relation has its own `signal_channel!` declaration | source review in `src/lib.rs` |
+| Every engine request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
+| Every supervision request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
+| `ComponentKind` has no `MessageProxy` variant | `nix flake check .#test-no-message-proxy-kind` |
+| Supervision requests carry no domain payload (no MessageBody, RoleClaim, TerminalInput) | `nix flake check .#test-supervision-no-domain-payload` |
 | Contract payload values round-trip through NOTA without schema mirrors | `engine_status_contract_payload_round_trips_through_nota` |
 | Requests carry no caller identity, class, proof, sender, timestamp, or minted engine id | source review in `src/lib.rs` |
 | Closed enums have no `Unknown` escape variant | source review in `src/lib.rs` |
@@ -192,8 +212,8 @@ This crate does not own:
 ## Code Map
 
 ```text
-src/lib.rs              manager payload records and signal_channel! declaration
-tests/engine_manager.rs frame and NOTA round trips for requests, replies, and component kinds
+src/lib.rs              manager payload records and both signal_channel! declarations
+tests/engine_manager.rs frame and NOTA round trips for catalog and supervision records
 tests/version.rs        signal-core version witness
 ```
 

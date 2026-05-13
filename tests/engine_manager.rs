@@ -1,12 +1,50 @@
 use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
 use signal_core::{FrameBody, Request, SemaVerb};
 use signal_persona::{
-    ComponentDesiredState, ComponentHealth, ComponentKind, ComponentName, ComponentShutdown,
-    ComponentStartup, ComponentStatus, ComponentStatusMissing, ComponentStatusQuery,
-    EngineGeneration, EngineOperationKind, EnginePhase, EngineReply, EngineRequest, EngineStatus,
-    EngineStatusQuery, Frame, SupervisorActionAcceptance, SupervisorActionRejection,
-    SupervisorActionRejectionReason,
+    ComponentDesiredState, ComponentHealth, ComponentHealthQuery, ComponentHealthReport,
+    ComponentHello, ComponentIdentity, ComponentKind, ComponentName, ComponentNotReady,
+    ComponentNotReadyReason, ComponentReadinessQuery, ComponentReady, ComponentShutdown,
+    ComponentStartup, ComponentStartupError, ComponentStatus, ComponentStatusMissing,
+    ComponentStatusQuery, EngineGeneration, EngineOperationKind, EnginePhase, EngineReply,
+    EngineRequest, EngineStatus, EngineStatusQuery, Frame, GracefulStopAcknowledgement,
+    GracefulStopRequest, SupervisionFrame, SupervisionOperationKind, SupervisionProtocolVersion,
+    SupervisionReply, SupervisionRequest, SupervisorActionAcceptance, SupervisorActionRejection,
+    SupervisorActionRejectionReason, TimestampNanos,
 };
+
+fn round_trip_supervision_request(
+    request: SupervisionRequest,
+    expected_verb: SemaVerb,
+) -> SupervisionRequest {
+    let frame = SupervisionFrame::new(FrameBody::Request(match expected_verb {
+        SemaVerb::Match => Request::match_records(request.clone()),
+        SemaVerb::Mutate => Request::mutate(request.clone()),
+        other => panic!("unsupported test verb {other:?}"),
+    }));
+    let bytes = frame.encode_length_prefixed().expect("encode request");
+    let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode request");
+
+    match decoded.into_body() {
+        FrameBody::Request(Request::Operation { verb, payload }) => {
+            assert_eq!(verb, expected_verb);
+            payload
+        }
+        other => panic!("expected supervision request, got {other:?}"),
+    }
+}
+
+fn round_trip_supervision_reply(reply: SupervisionReply) -> SupervisionReply {
+    let frame = SupervisionFrame::new(FrameBody::Reply(signal_core::Reply::operation(
+        reply.clone(),
+    )));
+    let bytes = frame.encode_length_prefixed().expect("encode reply");
+    let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode reply");
+
+    match decoded.into_body() {
+        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => decoded_reply,
+        other => panic!("expected supervision reply, got {other:?}"),
+    }
+}
 
 #[test]
 fn engine_status_query_round_trips_through_length_prefixed_frame() {
@@ -71,13 +109,13 @@ fn engine_status_reply_round_trips_with_component_health() {
 }
 
 #[test]
-fn engine_status_reply_round_trips_message_proxy_kind() {
+fn engine_status_reply_round_trips_message_kind() {
     let reply = EngineReply::EngineStatus(EngineStatus {
         generation: EngineGeneration::new(8),
         phase: EnginePhase::Running,
         components: vec![ComponentStatus {
             name: ComponentName::new("persona-message"),
-            kind: ComponentKind::MessageProxy,
+            kind: ComponentKind::Message,
             desired_state: ComponentDesiredState::Running,
             health: ComponentHealth::Running,
         }],
@@ -104,7 +142,7 @@ fn engine_status_contract_payload_round_trips_through_nota() {
         phase: EnginePhase::Running,
         components: vec![ComponentStatus {
             name: ComponentName::new("persona-message"),
-            kind: ComponentKind::MessageProxy,
+            kind: ComponentKind::Message,
             desired_state: ComponentDesiredState::Running,
             health: ComponentHealth::Running,
         }],
@@ -119,7 +157,7 @@ fn engine_status_contract_payload_round_trips_through_nota() {
     assert_eq!(recovered, status);
     assert_eq!(
         encoded,
-        "(EngineStatus 9 Running [(ComponentStatus persona-message MessageProxy Running Running)])"
+        "(EngineStatus 9 Running [(ComponentStatus persona-message Message Running Running)])"
     );
 }
 
@@ -177,6 +215,42 @@ fn engine_request_exposes_contract_owned_operation_kind() {
                 component: ComponentName::new("persona-router"),
             }),
             EngineOperationKind::ComponentShutdown,
+        ),
+    ];
+
+    for (request, operation) in cases {
+        assert_eq!(request.operation_kind(), operation);
+    }
+}
+
+#[test]
+fn supervision_request_exposes_contract_owned_operation_kind() {
+    let cases = [
+        (
+            SupervisionRequest::ComponentHello(ComponentHello {
+                expected_component: ComponentName::new("persona-router"),
+                expected_kind: ComponentKind::Router,
+                supervision_protocol_version: SupervisionProtocolVersion::new(1),
+            }),
+            SupervisionOperationKind::ComponentHello,
+        ),
+        (
+            SupervisionRequest::ComponentReadinessQuery(ComponentReadinessQuery {
+                component: ComponentName::new("persona-router"),
+            }),
+            SupervisionOperationKind::ComponentReadinessQuery,
+        ),
+        (
+            SupervisionRequest::ComponentHealthQuery(ComponentHealthQuery {
+                component: ComponentName::new("persona-router"),
+            }),
+            SupervisionOperationKind::ComponentHealthQuery,
+        ),
+        (
+            SupervisionRequest::GracefulStopRequest(GracefulStopRequest {
+                component: ComponentName::new("persona-router"),
+            }),
+            SupervisionOperationKind::GracefulStopRequest,
         ),
     ];
 
@@ -268,4 +342,134 @@ fn from_impls_lift_manager_payloads_into_channel_enums() {
     };
     let reply: EngineReply = acceptance.clone().into();
     assert_eq!(reply, EngineReply::SupervisorActionAccepted(acceptance));
+
+    let hello = ComponentHello {
+        expected_component: ComponentName::new("persona-router"),
+        expected_kind: ComponentKind::Router,
+        supervision_protocol_version: SupervisionProtocolVersion::new(1),
+    };
+    let request: SupervisionRequest = hello.clone().into();
+    assert_eq!(request, SupervisionRequest::ComponentHello(hello));
+
+    let ready = ComponentReady {
+        component_started_at: Some(TimestampNanos::new(42)),
+    };
+    let reply: SupervisionReply = ready.clone().into();
+    assert_eq!(reply, SupervisionReply::ComponentReady(ready));
+}
+
+#[test]
+fn supervision_requests_round_trip_through_length_prefixed_frames() {
+    let match_requests = [
+        SupervisionRequest::ComponentHello(ComponentHello {
+            expected_component: ComponentName::new("persona-router"),
+            expected_kind: ComponentKind::Router,
+            supervision_protocol_version: SupervisionProtocolVersion::new(1),
+        }),
+        SupervisionRequest::ComponentReadinessQuery(ComponentReadinessQuery {
+            component: ComponentName::new("persona-router"),
+        }),
+        SupervisionRequest::ComponentHealthQuery(ComponentHealthQuery {
+            component: ComponentName::new("persona-router"),
+        }),
+    ];
+
+    for request in match_requests {
+        assert_eq!(
+            round_trip_supervision_request(request.clone(), SemaVerb::Match),
+            request
+        );
+    }
+
+    let stop = SupervisionRequest::GracefulStopRequest(GracefulStopRequest {
+        component: ComponentName::new("persona-router"),
+    });
+    assert_eq!(
+        round_trip_supervision_request(stop.clone(), SemaVerb::Mutate),
+        stop
+    );
+}
+
+#[test]
+fn supervision_replies_round_trip_through_length_prefixed_frames() {
+    let replies = [
+        SupervisionReply::ComponentIdentity(ComponentIdentity {
+            name: ComponentName::new("persona-router"),
+            kind: ComponentKind::Router,
+            supervision_protocol_version: SupervisionProtocolVersion::new(1),
+            last_fatal_startup_error: None,
+        }),
+        SupervisionReply::ComponentReady(ComponentReady {
+            component_started_at: Some(TimestampNanos::new(100)),
+        }),
+        SupervisionReply::ComponentNotReady(ComponentNotReady {
+            reason: ComponentNotReadyReason::AwaitingDependency,
+        }),
+        SupervisionReply::ComponentHealthReport(ComponentHealthReport {
+            health: ComponentHealth::Running,
+        }),
+        SupervisionReply::GracefulStopAcknowledgement(GracefulStopAcknowledgement {
+            drain_completed_at: Some(TimestampNanos::new(200)),
+        }),
+    ];
+
+    for reply in replies {
+        assert_eq!(round_trip_supervision_reply(reply.clone()), reply);
+    }
+}
+
+#[test]
+fn supervision_payloads_round_trip_through_nota_text() {
+    let request = SupervisionRequest::ComponentHello(ComponentHello {
+        expected_component: ComponentName::new("persona-router"),
+        expected_kind: ComponentKind::Router,
+        supervision_protocol_version: SupervisionProtocolVersion::new(1),
+    });
+    let mut request_encoder = Encoder::new();
+    request
+        .encode(&mut request_encoder)
+        .expect("encode supervision request");
+    let request_text = request_encoder.into_string();
+    let mut request_decoder = Decoder::new(&request_text);
+    let recovered_request =
+        SupervisionRequest::decode(&mut request_decoder).expect("decode supervision request");
+    assert_eq!(recovered_request, request);
+    assert_eq!(request_text, "(ComponentHello persona-router Router 1)");
+
+    let reply = SupervisionReply::ComponentIdentity(ComponentIdentity {
+        name: ComponentName::new("persona-router"),
+        kind: ComponentKind::Router,
+        supervision_protocol_version: SupervisionProtocolVersion::new(1),
+        last_fatal_startup_error: Some(ComponentStartupError::StoreOpenFailed),
+    });
+    let mut reply_encoder = Encoder::new();
+    reply
+        .encode(&mut reply_encoder)
+        .expect("encode supervision reply");
+    let reply_text = reply_encoder.into_string();
+    let mut reply_decoder = Decoder::new(&reply_text);
+    let recovered_reply =
+        SupervisionReply::decode(&mut reply_decoder).expect("decode supervision reply");
+    assert_eq!(recovered_reply, reply);
+    assert_eq!(
+        reply_text,
+        "(ComponentIdentity persona-router Router 1 StoreOpenFailed)"
+    );
+}
+
+#[test]
+fn component_kind_does_not_define_message_proxy() {
+    let source = std::fs::read_to_string("src/lib.rs").expect("read source");
+
+    assert!(!source.contains("MessageProxy"));
+    assert!(source.contains("Message,"));
+}
+
+#[test]
+fn supervision_requests_carry_no_domain_payload() {
+    let source = std::fs::read_to_string("src/lib.rs").expect("read source");
+
+    for forbidden in ["MessageBody", "RoleClaim", "TerminalInput"] {
+        assert!(!source.contains(forbidden));
+    }
 }

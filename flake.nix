@@ -48,6 +48,20 @@
               cargoTestExtraArgs = "--test engine_manager";
             }
           );
+          test-no-message-proxy-kind = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test engine_manager component_kind_does_not_define_message_proxy -- --exact";
+            }
+          );
+          test-supervision-no-domain-payload = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test engine_manager supervision_requests_carry_no_domain_payload -- --exact";
+            }
+          );
           test-version = craneLib.cargoTest (
             commonArgs
             // {
