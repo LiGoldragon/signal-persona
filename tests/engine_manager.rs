@@ -137,6 +137,33 @@ fn engine_status_reply_round_trips_message_kind() {
 }
 
 #[test]
+fn engine_status_reply_round_trips_introspect_kind() {
+    let reply = EngineReply::EngineStatus(EngineStatus {
+        generation: EngineGeneration::new(10),
+        phase: EnginePhase::Running,
+        components: vec![ComponentStatus {
+            name: ComponentName::new("persona-introspect"),
+            kind: ComponentKind::Introspect,
+            desired_state: ComponentDesiredState::Running,
+            health: ComponentHealth::Running,
+        }],
+    });
+    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
+        reply.clone(),
+    )));
+
+    let bytes = frame.encode_length_prefixed().expect("encode");
+    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
+
+    match decoded.into_body() {
+        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => {
+            assert_eq!(decoded_reply, reply);
+        }
+        other => panic!("expected engine status reply, got {other:?}"),
+    }
+}
+
+#[test]
 fn engine_status_contract_payload_round_trips_through_nota() {
     let status = EngineStatus {
         generation: EngineGeneration::new(9),
@@ -514,6 +541,7 @@ fn component_kind_does_not_define_message_proxy() {
 
     assert!(!source.contains("MessageProxy"));
     assert!(source.contains("Message,"));
+    assert!(source.contains("Introspect,"));
 }
 
 #[test]

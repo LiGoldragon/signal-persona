@@ -2,7 +2,7 @@
 //!
 //! This crate names the top-level `persona` engine manager surface:
 //! clients talk to the engine catalog relation, and supervised
-//! first-stack components answer the manager's lifecycle relation.
+//! supervised local components answer the manager's lifecycle relation.
 //! Component-to-component contracts live in relation-specific
 //! `signal-persona-*` crates.
 
@@ -81,6 +81,7 @@ pub enum ComponentKind {
     System,
     Harness,
     Terminal,
+    Introspect,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]

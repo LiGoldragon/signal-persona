@@ -18,7 +18,7 @@ flowchart LR
     core["signal-core"]
     daemon["persona daemon"]
     engine["accepted engine context"]
-    components["first-stack components"]
+    components["supervised local components"]
 
     client -->|"Frame<EngineRequest, EngineReply>"| contract
     core -->|"Signal frame + Sema verbs"| contract
@@ -110,6 +110,7 @@ Message
 System
 Harness
 Terminal
+Introspect
 ```
 
 The `Message` variant (renamed from the retired
@@ -237,8 +238,8 @@ envelope-mint time; child opens it only if it has state to
 persist.
 
 **`SpawnEnvelope.component_name` naming note**: the field is typed
-as `signal-persona-auth::ComponentName` (closed enum of first-stack
-principals), **not** the open `signal-persona::ComponentName`
+as `signal-persona-auth::ComponentName` (closed enum of supervised
+local component principals), **not** the open `signal-persona::ComponentName`
 instance newtype. The two crates currently share the type name —
 operator's bead tracks the rename to
 `signal-persona-auth::ComponentPrincipal` /
