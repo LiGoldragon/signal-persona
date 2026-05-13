@@ -65,11 +65,22 @@ shape per `~/primary/reports/designer/142-supervision-in-signal-persona-no-messa
 | `ComponentReadinessQuery` | `Match` | `ComponentReady { component_started_at }` or `ComponentNotReady { reason }` |
 | `ComponentHealthQuery` | `Match` | `ComponentHealthReport { health }` |
 | `GracefulStopRequest` | `Mutate` | `GracefulStopAcknowledgement { drain_completed_at }` |
+| *any* (unbuilt variant) | (any verb) | `SupervisionUnimplemented(SupervisionUnimplementedReason)` |
 
 The supervision relation **does not** become a generic
 command bus - it carries lifecycle facts only; domain
 operations stay on the relevant `signal-persona-*` domain
 contracts.
+
+**Skeleton honesty** (per
+`~/primary/reports/designer/143-prototype-readiness-gap-audit.md`
+§4.3): every supervised daemon decodes every variant of
+`SupervisionRequest`. For variants whose behavior is built,
+it replies with the success/failure reply. For variants
+whose behavior is not yet built, it replies with
+`SupervisionReply::SupervisionUnimplemented(NotInPrototypeScope)`
+— a typed answer, not a panic. The same convention applies
+across every `signal-persona-*` contract.
 
 `signal-core` owns the frame envelope and the twelve Sema verbs. This crate
 owns the manager payloads under those verbs.
@@ -146,7 +157,48 @@ ComponentNotReadyReason
   | NotYetBound
   | AwaitingDependency
   | RecoveringFromCrash
+
+SupervisionUnimplementedReason
+  | NotInPrototypeScope                  -- variant exists in contract; behavior not yet built
+  | DependencyMissing(DependencyKind)    -- needs a peer component to be Ready first
+  | ResourceUnavailable(ResourceKind)    -- runtime preconditions unmet
 ```
+
+### SpawnEnvelope
+
+Per
+`~/primary/reports/designer/143-prototype-readiness-gap-audit.md`
+§4.1: the engine manager mints a `SpawnEnvelope` for each
+supervised child at spawn time; the child reads its envelope
+at startup and binds the named socket at the named mode.
+
+```text
+SpawnEnvelope
+  | engine_id:                    EngineId
+  | component_kind:                ComponentKind
+  | component_name:                ComponentName               (from signal-persona-auth)
+  | state_dir:                     WirePath                    (absolute path; empty when stateless)
+  | socket_path:                   WirePath                    (the socket this child binds)
+  | socket_mode:                   SocketMode                  (0600 internal | 0660 for Message)
+  | peer_sockets:                  Vec<PeerSocket>             (socket_path + ComponentName per peer)
+  | manager_socket:                WirePath                    (the persona daemon's supervision socket)
+  | supervision_protocol_version:  SupervisionProtocolVersion
+
+PeerSocket
+  | component_name:                ComponentName
+  | socket_path:                   WirePath
+
+SocketMode
+  | u32                                                        (POSIX mode bits; expected 0o600 or 0o660)
+```
+
+The manager writes one envelope file per child at
+`/var/run/persona/<engine-id>/<component>.envelope` (or
+equivalent runtime-dir path). The child reads through this
+crate's typed decoder at startup, binds its socket, applies
+the mode, and proceeds. Per ESSENCE §"Infrastructure mints
+identity, time, and sender" — the child does not invent its
+socket path or component name.
 
 ## Retired Vocabulary
 
@@ -204,6 +256,8 @@ This crate does not own:
 | Every supervision request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
 | `ComponentKind` has no `MessageProxy` variant | `nix flake check .#test-no-message-proxy-kind` |
 | Supervision requests carry no domain payload (no MessageBody, RoleClaim, TerminalInput) | `nix flake check .#test-supervision-no-domain-payload` |
+| `SupervisionReply::SupervisionUnimplemented` exists and round-trips | `nix flake check .#test-supervision-unimplemented-round-trip` |
+| `SpawnEnvelope` is a closed typed record (no string-keyed extension) | source review + round-trip in `tests/spawn_envelope.rs` |
 | Contract payload values round-trip through NOTA without schema mirrors | `engine_status_contract_payload_round_trips_through_nota` |
 | Requests carry no caller identity, class, proof, sender, timestamp, or minted engine id | source review in `src/lib.rs` |
 | Closed enums have no `Unknown` escape variant | source review in `src/lib.rs` |
