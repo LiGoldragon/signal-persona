@@ -56,8 +56,7 @@ versa.
 | `ComponentStartup` | `Mutate` | `SupervisorActionAccepted` or `SupervisorActionRejected` |
 | `ComponentShutdown` | `Mutate` | `SupervisorActionAccepted` or `SupervisorActionRejected` |
 
-**Supervision relation** (manager-to-supervised-component;
-shape per `~/primary/reports/designer/142-supervision-in-signal-persona-no-message-proxy-daemon.md` §2.2):
+**Supervision relation** (manager-to-supervised-component):
 
 | Request | Sema verb | Reply |
 |---|---|---|
@@ -72,18 +71,15 @@ command bus - it carries lifecycle facts only; domain
 operations stay on the relevant `signal-persona-*` domain
 contracts.
 
-**Skeleton honesty** (per
-`~/primary/reports/designer/143-prototype-readiness-gap-audit.md`
-§4.3): every supervised daemon decodes every variant of
-`SupervisionRequest`. For variants whose behavior is built,
+**Skeleton honesty**: every supervised daemon decodes every variant
+of `SupervisionRequest`. For variants whose behavior is built,
 it replies with the success/failure reply. For variants
 whose behavior is not yet built, it replies with
 `SupervisionReply::SupervisionUnimplemented(NotInPrototypeScope)`
 — a typed answer, not a panic. The same convention applies
 across every `signal-persona-*` contract.
 
-**Supervision `Unimplemented` is constrained** (per
-`~/primary/reports/designer/144-prototype-architecture-final-cleanup-after-da36.md` §3.1):
+**Supervision `Unimplemented` is constrained**:
 `SupervisionUnimplemented` is **only** for future
 supervision-relation variants beyond the current four-op surface.
 The four prototype variants — `ComponentHello`,
@@ -118,8 +114,7 @@ The `Message` variant (renamed from the retired
 `MessageProxy`) names the engine's supervised message-ingress
 component. The "proxy" name retires from variant, socket,
 binary, and env-var vocabulary; the supervised daemon binary
-is `persona-message-daemon`. Per
-`~/primary/reports/designer/142-supervision-in-signal-persona-no-message-proxy-daemon.md` §3.
+is `persona-message-daemon`.
 
 `ComponentStatus` combines both:
 
@@ -178,11 +173,7 @@ SupervisionUnimplementedReason
 
 ### SpawnEnvelope
 
-Per
-`~/primary/reports/designer/143-prototype-readiness-gap-audit.md`
-§4.1 and
-`~/primary/reports/designer/144-prototype-architecture-final-cleanup-after-da36.md` §2.3:
-the engine manager mints a `SpawnEnvelope` for each
+The engine manager mints a `SpawnEnvelope` for each
 supervised child at spawn time; the child reads its envelope
 at startup and binds the named socket at the named mode.
 
