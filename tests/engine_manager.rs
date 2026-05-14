@@ -17,11 +17,8 @@ fn round_trip_supervision_request(
     request: SupervisionRequest,
     expected_verb: SignalVerb,
 ) -> SupervisionRequest {
-    let frame = SupervisionFrame::new(FrameBody::Request(match expected_verb {
-        SignalVerb::Match => Request::match_records(request.clone()),
-        SignalVerb::Mutate => Request::mutate(request.clone()),
-        other => panic!("unsupported test verb {other:?}"),
-    }));
+    assert_eq!(request.signal_verb(), expected_verb);
+    let frame = SupervisionFrame::new(FrameBody::Request(request.clone().into_signal_request()));
     let bytes = frame.encode_length_prefixed().expect("encode request");
     let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode request");
 
@@ -50,7 +47,7 @@ fn round_trip_supervision_reply(reply: SupervisionReply) -> SupervisionReply {
 #[test]
 fn engine_status_query_round_trips_through_length_prefixed_frame() {
     let request = EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine());
-    let frame = Frame::new(FrameBody::Request(Request::match_records(request.clone())));
+    let frame = Frame::new(FrameBody::Request(request.clone().into_signal_request()));
 
     let bytes = frame.encode_length_prefixed().expect("encode");
     let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
@@ -69,7 +66,7 @@ fn component_status_query_round_trips_through_length_prefixed_frame() {
     let request = EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
         component: ComponentName::new("persona-router"),
     });
-    let frame = Frame::new(FrameBody::Request(Request::match_records(request.clone())));
+    let frame = Frame::new(FrameBody::Request(request.clone().into_signal_request()));
 
     let bytes = frame.encode_length_prefixed().expect("encode");
     let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
@@ -326,7 +323,7 @@ fn supervisor_action_round_trips_with_typed_rejection() {
     let startup = EngineRequest::ComponentStartup(ComponentStartup {
         component: ComponentName::new("persona-system"),
     });
-    let startup_frame = Frame::new(FrameBody::Request(Request::mutate(startup.clone())));
+    let startup_frame = Frame::new(FrameBody::Request(startup.clone().into_signal_request()));
     let startup_bytes = startup_frame.encode_length_prefixed().expect("encode");
     let startup_decoded = Frame::decode_length_prefixed(&startup_bytes).expect("decode");
 

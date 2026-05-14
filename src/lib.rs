@@ -438,10 +438,10 @@ pub enum SupervisorActionRejectionReason {
 
 signal_channel! {
     request EngineRequest {
-        EngineStatusQuery(EngineStatusQuery),
-        ComponentStatusQuery(ComponentStatusQuery),
-        ComponentStartup(ComponentStartup),
-        ComponentShutdown(ComponentShutdown),
+        Match EngineStatusQuery(EngineStatusQuery),
+        Match ComponentStatusQuery(ComponentStatusQuery),
+        Mutate ComponentStartup(ComponentStartup),
+        Mutate ComponentShutdown(ComponentShutdown),
     }
     reply EngineReply {
         EngineStatus(EngineStatus),
@@ -462,10 +462,10 @@ pub mod supervision {
 
     signal_channel! {
         request SupervisionRequest {
-            ComponentHello(ComponentHello),
-            ComponentReadinessQuery(ComponentReadinessQuery),
-            ComponentHealthQuery(ComponentHealthQuery),
-            GracefulStopRequest(GracefulStopRequest),
+            Match ComponentHello(ComponentHello),
+            Match ComponentReadinessQuery(ComponentReadinessQuery),
+            Match ComponentHealthQuery(ComponentHealthQuery),
+            Mutate GracefulStopRequest(GracefulStopRequest),
         }
         reply SupervisionReply {
             ComponentIdentity(ComponentIdentity),
