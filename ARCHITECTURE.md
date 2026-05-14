@@ -92,8 +92,9 @@ The four prototype variants — `ComponentHello`,
 component**. A daemon that replies `SupervisionUnimplemented` to
 any of those four fails the prototype readiness witness.
 
-`signal-core` owns the frame envelope and the twelve Sema verbs. This crate
-owns the manager payloads under those verbs.
+`signal-core` owns the frame envelope and the closed seven-root
+`SignalVerb` spine. This crate owns the manager payloads under
+those roots.
 
 ## Typed Records
 

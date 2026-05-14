@@ -1,5 +1,5 @@
 use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
-use signal_core::{FrameBody, Request, SemaVerb};
+use signal_core::{FrameBody, Request, SignalVerb};
 use signal_persona::{
     ComponentDesiredState, ComponentHealth, ComponentHealthQuery, ComponentHealthReport,
     ComponentHello, ComponentIdentity, ComponentKind, ComponentName, ComponentNotReady,
@@ -15,11 +15,11 @@ use signal_persona::{
 
 fn round_trip_supervision_request(
     request: SupervisionRequest,
-    expected_verb: SemaVerb,
+    expected_verb: SignalVerb,
 ) -> SupervisionRequest {
     let frame = SupervisionFrame::new(FrameBody::Request(match expected_verb {
-        SemaVerb::Match => Request::match_records(request.clone()),
-        SemaVerb::Mutate => Request::mutate(request.clone()),
+        SignalVerb::Match => Request::match_records(request.clone()),
+        SignalVerb::Mutate => Request::mutate(request.clone()),
         other => panic!("unsupported test verb {other:?}"),
     }));
     let bytes = frame.encode_length_prefixed().expect("encode request");
@@ -57,7 +57,7 @@ fn engine_status_query_round_trips_through_length_prefixed_frame() {
 
     match decoded.into_body() {
         FrameBody::Request(Request::Operation { verb, payload }) => {
-            assert_eq!(verb, SemaVerb::Match);
+            assert_eq!(verb, SignalVerb::Match);
             assert_eq!(payload, request);
         }
         other => panic!("expected Match request, got {other:?}"),
@@ -332,7 +332,7 @@ fn supervisor_action_round_trips_with_typed_rejection() {
 
     match startup_decoded.into_body() {
         FrameBody::Request(Request::Operation { verb, payload }) => {
-            assert_eq!(verb, SemaVerb::Mutate);
+            assert_eq!(verb, SignalVerb::Mutate);
             assert_eq!(payload, startup);
         }
         other => panic!("expected startup request, got {other:?}"),
@@ -404,7 +404,7 @@ fn supervision_requests_round_trip_through_length_prefixed_frames() {
 
     for request in match_requests {
         assert_eq!(
-            round_trip_supervision_request(request.clone(), SemaVerb::Match),
+            round_trip_supervision_request(request.clone(), SignalVerb::Match),
             request
         );
     }
@@ -413,7 +413,7 @@ fn supervision_requests_round_trip_through_length_prefixed_frames() {
         component: ComponentName::new("persona-router"),
     });
     assert_eq!(
-        round_trip_supervision_request(stop.clone(), SemaVerb::Mutate),
+        round_trip_supervision_request(stop.clone(), SignalVerb::Mutate),
         stop
     );
 }

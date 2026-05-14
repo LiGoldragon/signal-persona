@@ -12,7 +12,7 @@ use signal_core::signal_channel;
 
 pub use signal_core::{
     FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, ProtocolVersion,
-    Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SemaVerb, Slot,
+    Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SignalVerb, Slot,
 };
 
 #[derive(

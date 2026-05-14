@@ -13,7 +13,8 @@ Rules for work here:
 - Component-to-component records belong in the relation-specific
   `signal-persona-*` contract repo for that relation.
 - The manager contract owns record kinds and query payloads, not protocol
-  verbs. The only operation verbs are the twelve `signal-core` Sema verbs.
+  verbs. The only operation roots are the seven `signal-core`
+  `SignalVerb` roots.
 - Do not add schema fields for infrastructure-minted values: record identity,
   sender principal, or commit time.
 - Keep request/reply/event enums closed and typed. Do not add `Unknown` to
