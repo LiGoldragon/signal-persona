@@ -377,7 +377,7 @@ pub struct SupervisionUnimplemented {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct PeerSocket {
     pub component_name: signal_persona_auth::ComponentName,
-    pub socket_path: WirePath,
+    pub domain_socket_path: WirePath,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
@@ -386,8 +386,10 @@ pub struct SpawnEnvelope {
     pub component_kind: ComponentKind,
     pub component_name: signal_persona_auth::ComponentName,
     pub state_dir: WirePath,
-    pub socket_path: WirePath,
-    pub socket_mode: SocketMode,
+    pub domain_socket_path: WirePath,
+    pub domain_socket_mode: SocketMode,
+    pub supervision_socket_path: WirePath,
+    pub supervision_socket_mode: SocketMode,
     pub peer_sockets: Vec<PeerSocket>,
     pub manager_socket: WirePath,
     pub supervision_protocol_version: SupervisionProtocolVersion,

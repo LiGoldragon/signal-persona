@@ -9,11 +9,13 @@ fn fixture_spawn_envelope() -> SpawnEnvelope {
         component_kind: ComponentKind::Message,
         component_name: signal_persona_auth::ComponentName::Message,
         state_dir: WirePath::new("/var/lib/persona/default/message"),
-        socket_path: WirePath::new("/var/run/persona/default/message.sock"),
-        socket_mode: SocketMode::new(0o660),
+        domain_socket_path: WirePath::new("/var/run/persona/default/message.sock"),
+        domain_socket_mode: SocketMode::new(0o660),
+        supervision_socket_path: WirePath::new("/var/run/persona/default/message.supervision.sock"),
+        supervision_socket_mode: SocketMode::new(0o600),
         peer_sockets: vec![PeerSocket {
             component_name: signal_persona_auth::ComponentName::Router,
-            socket_path: WirePath::new("/var/run/persona/default/router.sock"),
+            domain_socket_path: WirePath::new("/var/run/persona/default/router.sock"),
         }],
         manager_socket: WirePath::new("/var/run/persona/default/persona.sock"),
         supervision_protocol_version: SupervisionProtocolVersion::new(1),
@@ -34,7 +36,7 @@ fn spawn_envelope_round_trips_through_nota_text() {
     assert_eq!(recovered, envelope);
     assert_eq!(
         text,
-        "(SpawnEnvelope default Message Message \"/var/lib/persona/default/message\" \"/var/run/persona/default/message.sock\" 432 [(PeerSocket Router \"/var/run/persona/default/router.sock\")] \"/var/run/persona/default/persona.sock\" 1)"
+        "(SpawnEnvelope default Message Message \"/var/lib/persona/default/message\" \"/var/run/persona/default/message.sock\" 432 \"/var/run/persona/default/message.supervision.sock\" 384 [(PeerSocket Router \"/var/run/persona/default/router.sock\")] \"/var/run/persona/default/persona.sock\" 1)"
     );
 }
 
@@ -50,4 +52,20 @@ fn spawn_envelope_carries_closed_component_principals() {
         envelope.peer_sockets[0].component_name,
         signal_persona_auth::ComponentName::Router
     );
+}
+
+#[test]
+fn spawn_envelope_separates_domain_and_supervision_sockets() {
+    let envelope = fixture_spawn_envelope();
+
+    assert_eq!(
+        envelope.domain_socket_path.as_str(),
+        "/var/run/persona/default/message.sock"
+    );
+    assert_eq!(envelope.domain_socket_mode.into_u32(), 0o660);
+    assert_eq!(
+        envelope.supervision_socket_path.as_str(),
+        "/var/run/persona/default/message.supervision.sock"
+    );
+    assert_eq!(envelope.supervision_socket_mode.into_u32(), 0o600);
 }

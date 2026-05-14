@@ -182,8 +182,9 @@ at startup and binds the named socket at the named mode.
 
 - `signal-persona::SpawnEnvelope` (this crate, the typed wire form):
   child-readable subset only — engine_id, component_kind,
-  component_name, state_dir, socket_path, socket_mode,
-  peer_sockets, manager_socket, supervision_protocol_version.
+  component_name, state_dir, domain_socket_path, domain_socket_mode,
+  supervision_socket_path, supervision_socket_mode, peer_sockets,
+  manager_socket, supervision_protocol_version.
 - `persona::launch::ResolvedComponentLaunch` (manager-internal Rust
   type, not in this crate): adds executable path, argv,
   environment, working directory, process-group mode, restart policy,
@@ -199,27 +200,35 @@ SpawnEnvelope
   | component_kind:                ComponentKind
   | component_name:                ComponentName               (from signal-persona-auth)
   | state_dir:                     WirePath                    (absolute path; empty when stateless)
-  | socket_path:                   WirePath                    (the socket this child binds)
-  | socket_mode:                   SocketMode                  (0600 internal | 0660 for Message)
-  | peer_sockets:                  Vec<PeerSocket>             (socket_path + ComponentName per peer)
+  | domain_socket_path:            WirePath                    (the component's operational socket)
+  | domain_socket_mode:            SocketMode                  (0600 internal | 0660 for Message)
+  | supervision_socket_path:       WirePath                    (the manager-to-child supervision socket)
+  | supervision_socket_mode:       SocketMode                  (0600 internal)
+  | peer_sockets:                  Vec<PeerSocket>             (domain_socket_path + ComponentName per peer)
   | manager_socket:                WirePath                    (the persona daemon's supervision socket)
   | supervision_protocol_version:  SupervisionProtocolVersion
 
 PeerSocket
   | component_name:                ComponentName
-  | socket_path:                   WirePath
+  | domain_socket_path:            WirePath
 
 SocketMode
   | u32                                                        (POSIX mode bits; expected 0o600 or 0o660)
 ```
 
+Each Unix socket has one frame vocabulary. Domain sockets speak the
+component's `signal-persona-*` operational contract; supervision
+sockets speak `signal-persona::SupervisionRequest` /
+`SupervisionReply`. The manager does not multiplex two rkyv frame
+types on one socket.
+
 The manager writes one envelope file per child at
 `/var/run/persona/<engine-id>/<component>.envelope` (or
 equivalent runtime-dir path). The child reads through this
-crate's typed decoder at startup, binds its socket, applies
-the mode, and proceeds. Per ESSENCE §"Infrastructure mints
-identity, time, and sender" — the child does not invent its
-socket path or component name.
+crate's typed decoder at startup, binds its domain and
+supervision sockets, applies the modes, and proceeds. Per
+ESSENCE §"Infrastructure mints identity, time, and sender" —
+the child does not invent its socket paths or component name.
 
 **State directory for stateless components** (per /144 §3.2): the
 `state_dir` field is always populated; stateless components
