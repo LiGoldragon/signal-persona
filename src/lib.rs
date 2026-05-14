@@ -139,6 +139,61 @@ pub struct ComponentStatusQuery {
     pub component: ComponentName,
 }
 
+#[derive(
+    Archive,
+    RkyvSerialize,
+    RkyvDeserialize,
+    NotaTransparent,
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+)]
+pub struct EngineLabel(String);
+
+impl EngineLabel {
+    pub fn new(value: impl Into<String>) -> Self {
+        Self(value.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineLaunchProposal {
+    pub label: EngineLabel,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EngineCatalogScope {
+    AllEngines,
+}
+
+#[derive(
+    Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, Copy, PartialEq, Eq,
+)]
+pub struct EngineCatalogQuery {
+    pub scope: EngineCatalogScope,
+}
+
+impl EngineCatalogQuery {
+    pub const fn all_engines() -> Self {
+        Self {
+            scope: EngineCatalogScope::AllEngines,
+        }
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineRetirement {
+    pub engine: signal_persona_auth::EngineId,
+}
+
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct ComponentStartup {
     pub component: ComponentName,
@@ -399,6 +454,9 @@ pub struct SpawnEnvelope {
     Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq, Hash,
 )]
 pub enum EngineOperationKind {
+    EngineLaunchProposal,
+    EngineCatalogQuery,
+    EngineRetirement,
     EngineStatusQuery,
     ComponentStatusQuery,
     ComponentStartup,
@@ -422,6 +480,55 @@ pub struct SupervisorActionAcceptance {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineLaunchAcceptance {
+    pub engine: signal_persona_auth::EngineId,
+    pub label: EngineLabel,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineLaunchRejection {
+    pub label: EngineLabel,
+    pub reason: EngineLaunchRejectionReason,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EngineLaunchRejectionReason {
+    EngineLabelAlreadyExists,
+    EngineLimitReached,
+    LaunchPlanRejected,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineCatalogEntry {
+    pub engine: signal_persona_auth::EngineId,
+    pub label: EngineLabel,
+    pub phase: EnginePhase,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineCatalog {
+    pub engines: Vec<EngineCatalogEntry>,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineRetirementAcceptance {
+    pub engine: signal_persona_auth::EngineId,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineRetirementRejection {
+    pub engine: signal_persona_auth::EngineId,
+    pub reason: EngineRetirementRejectionReason,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EngineRetirementRejectionReason {
+    EngineNotFound,
+    EngineStillRunning,
+    EngineHasLiveRoutes,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct ComponentStatusMissing {
     pub component: ComponentName,
 }
@@ -440,12 +547,20 @@ pub enum SupervisorActionRejectionReason {
 
 signal_channel! {
     request EngineRequest {
+        Assert EngineLaunchProposal(EngineLaunchProposal),
+        Match EngineCatalogQuery(EngineCatalogQuery),
+        Retract EngineRetirement(EngineRetirement),
         Match EngineStatusQuery(EngineStatusQuery),
         Match ComponentStatusQuery(ComponentStatusQuery),
         Mutate ComponentStartup(ComponentStartup),
         Mutate ComponentShutdown(ComponentShutdown),
     }
     reply EngineReply {
+        EngineLaunchAccepted(EngineLaunchAcceptance),
+        EngineLaunchRejected(EngineLaunchRejection),
+        EngineCatalog(EngineCatalog),
+        EngineRetirementAccepted(EngineRetirementAcceptance),
+        EngineRetirementRejected(EngineRetirementRejection),
         EngineStatus(EngineStatus),
         ComponentStatus(ComponentStatus),
         ComponentStatusMissing(ComponentStatusMissing),
@@ -501,6 +616,9 @@ pub use supervision::{
 impl EngineRequest {
     pub fn operation_kind(&self) -> EngineOperationKind {
         match self {
+            Self::EngineLaunchProposal(_) => EngineOperationKind::EngineLaunchProposal,
+            Self::EngineCatalogQuery(_) => EngineOperationKind::EngineCatalogQuery,
+            Self::EngineRetirement(_) => EngineOperationKind::EngineRetirement,
             Self::EngineStatusQuery(_) => EngineOperationKind::EngineStatusQuery,
             Self::ComponentStatusQuery(_) => EngineOperationKind::ComponentStatusQuery,
             Self::ComponentStartup(_) => EngineOperationKind::ComponentStartup,

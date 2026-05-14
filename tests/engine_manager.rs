@@ -5,13 +5,44 @@ use signal_persona::{
     ComponentHello, ComponentIdentity, ComponentKind, ComponentName, ComponentNotReady,
     ComponentNotReadyReason, ComponentReadinessQuery, ComponentReady, ComponentShutdown,
     ComponentStartup, ComponentStartupError, ComponentStatus, ComponentStatusMissing,
-    ComponentStatusQuery, DependencyKind, EngineGeneration, EngineOperationKind, EnginePhase,
-    EngineReply, EngineRequest, EngineStatus, EngineStatusQuery, Frame,
-    GracefulStopAcknowledgement, GracefulStopRequest, ResourceKind, SupervisionFrame,
+    ComponentStatusQuery, DependencyKind, EngineCatalog, EngineCatalogEntry, EngineCatalogQuery,
+    EngineGeneration, EngineLabel, EngineLaunchAcceptance, EngineLaunchProposal,
+    EngineLaunchRejection, EngineLaunchRejectionReason, EngineOperationKind, EnginePhase,
+    EngineReply, EngineRequest, EngineRetirement, EngineRetirementAcceptance,
+    EngineRetirementRejection, EngineRetirementRejectionReason, EngineStatus, EngineStatusQuery,
+    Frame, GracefulStopAcknowledgement, GracefulStopRequest, ResourceKind, SupervisionFrame,
     SupervisionOperationKind, SupervisionProtocolVersion, SupervisionReply, SupervisionRequest,
     SupervisionUnimplemented, SupervisionUnimplementedReason, SupervisorActionAcceptance,
     SupervisorActionRejection, SupervisorActionRejectionReason, TimestampNanos,
 };
+
+fn round_trip_engine_request(request: EngineRequest, expected_verb: SignalVerb) -> EngineRequest {
+    assert_eq!(request.signal_verb(), expected_verb);
+    let frame = Frame::new(FrameBody::Request(request.clone().into_signal_request()));
+    let bytes = frame.encode_length_prefixed().expect("encode request");
+    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode request");
+
+    match decoded.into_body() {
+        FrameBody::Request(Request::Operation { verb, payload }) => {
+            assert_eq!(verb, expected_verb);
+            payload
+        }
+        other => panic!("expected engine request, got {other:?}"),
+    }
+}
+
+fn round_trip_engine_reply(reply: EngineReply) -> EngineReply {
+    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
+        reply.clone(),
+    )));
+    let bytes = frame.encode_length_prefixed().expect("encode reply");
+    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode reply");
+
+    match decoded.into_body() {
+        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => decoded_reply,
+        other => panic!("expected engine reply, got {other:?}"),
+    }
+}
 
 fn round_trip_supervision_request(
     request: SupervisionRequest,
@@ -42,6 +73,104 @@ fn round_trip_supervision_reply(reply: SupervisionReply) -> SupervisionReply {
         FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => decoded_reply,
         other => panic!("expected supervision reply, got {other:?}"),
     }
+}
+
+#[test]
+fn engine_catalog_requests_round_trip_with_declared_signal_verbs() {
+    let launch = EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
+        label: EngineLabel::new("research"),
+    });
+    assert_eq!(
+        round_trip_engine_request(launch.clone(), SignalVerb::Assert),
+        launch
+    );
+
+    let catalog = EngineRequest::EngineCatalogQuery(EngineCatalogQuery::all_engines());
+    assert_eq!(
+        round_trip_engine_request(catalog.clone(), SignalVerb::Match),
+        catalog
+    );
+
+    let retirement = EngineRequest::EngineRetirement(EngineRetirement {
+        engine: signal_persona_auth::EngineId::new("research"),
+    });
+    assert_eq!(
+        round_trip_engine_request(retirement.clone(), SignalVerb::Retract),
+        retirement
+    );
+}
+
+#[test]
+fn engine_catalog_replies_round_trip_through_length_prefixed_frames() {
+    let accepted = EngineReply::EngineLaunchAccepted(EngineLaunchAcceptance {
+        engine: signal_persona_auth::EngineId::new("research"),
+        label: EngineLabel::new("research"),
+    });
+    assert_eq!(round_trip_engine_reply(accepted.clone()), accepted);
+
+    let rejected = EngineReply::EngineLaunchRejected(EngineLaunchRejection {
+        label: EngineLabel::new("research"),
+        reason: EngineLaunchRejectionReason::EngineLabelAlreadyExists,
+    });
+    assert_eq!(round_trip_engine_reply(rejected.clone()), rejected);
+
+    let catalog = EngineReply::EngineCatalog(EngineCatalog {
+        engines: vec![EngineCatalogEntry {
+            engine: signal_persona_auth::EngineId::new("default"),
+            label: EngineLabel::new("default"),
+            phase: EnginePhase::Running,
+        }],
+    });
+    assert_eq!(round_trip_engine_reply(catalog.clone()), catalog);
+
+    let retired = EngineReply::EngineRetirementAccepted(EngineRetirementAcceptance {
+        engine: signal_persona_auth::EngineId::new("research"),
+    });
+    assert_eq!(round_trip_engine_reply(retired.clone()), retired);
+
+    let blocked = EngineReply::EngineRetirementRejected(EngineRetirementRejection {
+        engine: signal_persona_auth::EngineId::new("default"),
+        reason: EngineRetirementRejectionReason::EngineStillRunning,
+    });
+    assert_eq!(round_trip_engine_reply(blocked.clone()), blocked);
+}
+
+#[test]
+fn engine_catalog_payloads_round_trip_through_nota_text() {
+    let request = EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
+        label: EngineLabel::new("research"),
+    });
+    let mut request_encoder = Encoder::new();
+    request
+        .encode(&mut request_encoder)
+        .expect("encode engine catalog request");
+    let request_text = request_encoder.into_string();
+    let mut request_decoder = Decoder::new(&request_text);
+    let recovered_request =
+        EngineRequest::decode(&mut request_decoder).expect("decode engine catalog request");
+    assert_eq!(recovered_request, request);
+    assert_eq!(request_text, "(EngineLaunchProposal research)");
+
+    let reply = EngineReply::EngineCatalog(EngineCatalog {
+        engines: vec![EngineCatalogEntry {
+            engine: signal_persona_auth::EngineId::new("default"),
+            label: EngineLabel::new("default"),
+            phase: EnginePhase::Running,
+        }],
+    });
+    let mut reply_encoder = Encoder::new();
+    reply
+        .encode(&mut reply_encoder)
+        .expect("encode engine catalog reply");
+    let reply_text = reply_encoder.into_string();
+    let mut reply_decoder = Decoder::new(&reply_text);
+    let recovered_reply =
+        EngineReply::decode(&mut reply_decoder).expect("decode engine catalog reply");
+    assert_eq!(recovered_reply, reply);
+    assert_eq!(
+        reply_text,
+        "(EngineCatalog [(EngineCatalogEntry default default Running)])"
+    );
 }
 
 #[test]
@@ -219,6 +348,22 @@ fn engine_channel_request_reply_round_trip_through_nota() {
 #[test]
 fn engine_request_exposes_contract_owned_operation_kind() {
     let cases = [
+        (
+            EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
+                label: EngineLabel::new("research"),
+            }),
+            EngineOperationKind::EngineLaunchProposal,
+        ),
+        (
+            EngineRequest::EngineCatalogQuery(EngineCatalogQuery::all_engines()),
+            EngineOperationKind::EngineCatalogQuery,
+        ),
+        (
+            EngineRequest::EngineRetirement(EngineRetirement {
+                engine: signal_persona_auth::EngineId::new("research"),
+            }),
+            EngineOperationKind::EngineRetirement,
+        ),
         (
             EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine()),
             EngineOperationKind::EngineStatusQuery,

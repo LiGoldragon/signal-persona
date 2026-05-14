@@ -21,7 +21,7 @@ flowchart LR
     components["supervised local components"]
 
     client -->|"Frame<EngineRequest, EngineReply>"| contract
-    core -->|"Signal frame + Sema verbs"| contract
+    core -->|"Signal frame + Signal verbs"| contract
     contract -->|"typed manager payloads"| daemon
     daemon -->|"engine-scoped socket/context"| engine
     engine -->|"status + lifecycle supervision"| components
@@ -49,8 +49,11 @@ versa.
 
 **Engine catalog / CLI surface:**
 
-| Request | Sema verb | Reply |
+| Request | Signal verb | Reply |
 |---|---|---|
+| `EngineLaunchProposal` | `Assert` | `EngineLaunchAccepted` or `EngineLaunchRejected` |
+| `EngineCatalogQuery` | `Match` | `EngineCatalog` |
+| `EngineRetirement` | `Retract` | `EngineRetirementAccepted` or `EngineRetirementRejected` |
 | `EngineStatusQuery` | `Match` | `EngineStatus` |
 | `ComponentStatusQuery` | `Match` | `ComponentStatus` or `ComponentStatusMissing` |
 | `ComponentStartup` | `Mutate` | `SupervisorActionAccepted` or `SupervisorActionRejected` |
@@ -58,7 +61,7 @@ versa.
 
 **Supervision relation** (manager-to-supervised-component):
 
-| Request | Sema verb | Reply |
+| Request | Signal verb | Reply |
 |---|---|---|
 | `ComponentHello` | `Match` | `ComponentIdentity` (name, kind, supervision protocol version, last startup error) |
 | `ComponentReadinessQuery` | `Match` | `ComponentReady { component_started_at }` or `ComponentNotReady { reason }` |
@@ -129,6 +132,51 @@ ComponentStatus
 The rest of the current records are similarly closed and small:
 
 ```text
+EngineLaunchProposal
+  | label: EngineLabel
+
+EngineCatalogQuery
+  | scope: EngineCatalogScope
+
+EngineCatalogScope
+  | AllEngines
+
+EngineRetirement
+  | engine: EngineId
+
+EngineLaunchAcceptance
+  | engine: EngineId
+  | label: EngineLabel
+
+EngineLaunchRejection
+  | label:  EngineLabel
+  | reason: EngineLaunchRejectionReason
+
+EngineLaunchRejectionReason
+  | EngineLabelAlreadyExists
+  | EngineLimitReached
+  | LaunchPlanRejected
+
+EngineCatalog
+  | engines: Vec<EngineCatalogEntry>
+
+EngineCatalogEntry
+  | engine: EngineId
+  | label:  EngineLabel
+  | phase:  EnginePhase
+
+EngineRetirementAcceptance
+  | engine: EngineId
+
+EngineRetirementRejection
+  | engine: EngineId
+  | reason: EngineRetirementRejectionReason
+
+EngineRetirementRejectionReason
+  | EngineNotFound
+  | EngineStillRunning
+  | EngineHasLiveRoutes
+
 EngineStatus
   | generation: EngineGeneration
   | phase:      EnginePhase
@@ -260,8 +308,11 @@ Older reports and previous architecture drafts used these names:
 - `EngineOwnershipTransfer`
 - `OwnerIdentity`
 
-They are not part of the current `signal-persona` contract. Do not implement
-them from this crate's architecture. Provenance and local boundary facts belong
+They are not part of the current `signal-persona` contract under those names.
+Do not implement them from stale reports. The current engine-catalog names are
+`EngineLaunchProposal`, `EngineCatalogQuery`, and `EngineRetirement`; the
+request payloads do not carry caller identity, sender, timestamp, connection
+class, or an agent-minted engine id. Provenance and local boundary facts belong
 to `signal-persona-auth` / ingress context; component-to-component routing
 belongs to relation-specific `signal-persona-*` contracts and the runtime
 components that consume them.
@@ -279,7 +330,7 @@ This crate owns:
   `signal_channel!`.
 - `Frame` / `FrameBody` aliases over `signal-core`.
 - `SupervisionFrame` / `SupervisionFrameBody` aliases over `signal-core`.
-- Manager status and component lifecycle payload records.
+- Manager engine-catalog, status, and component lifecycle payload records.
 - Closed status, health, phase, and rejection enums.
 - rkyv frame round-trip tests and NOTA text round-trip tests for the manager
   contract.
@@ -299,6 +350,7 @@ This crate does not own:
 | Constraint | Witness |
 |---|---|
 | Each named relation has its own `signal_channel!` declaration | source review in `src/lib.rs` |
+| Engine catalog creation/query/retirement are seven-root Signal operations | `engine_catalog_requests_round_trip_with_declared_signal_verbs` |
 | Every engine request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
 | Every supervision request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
 | `ComponentKind` has no `MessageProxy` variant | `nix flake check .#test-no-message-proxy-kind` |
@@ -314,7 +366,7 @@ This crate does not own:
 
 ```text
 src/lib.rs              manager payload records and both signal_channel! declarations
-tests/engine_manager.rs frame and NOTA round trips for catalog and supervision records
+tests/engine_manager.rs frame and NOTA round trips for engine catalog and supervision records
 tests/version.rs        signal-core version witness
 ```
 
@@ -323,7 +375,7 @@ tests/version.rs        signal-core version witness
 - `/git/github.com/LiGoldragon/persona/ARCHITECTURE.md` — runtime manager
   that consumes this contract.
 - `/git/github.com/LiGoldragon/signal-core/ARCHITECTURE.md` — Signal frame
-  kernel and Sema verbs.
+  kernel and Signal verbs.
 - `/git/github.com/LiGoldragon/signal-persona-auth/ARCHITECTURE.md` —
   provenance and ingress context vocabulary.
 - `~/primary/skills/contract-repo.md` — contract repo discipline.
