@@ -11,7 +11,7 @@ use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
 use signal_core::signal_channel;
 
 pub use signal_core::{
-    FrameBody as CoreFrameBody, HandshakeReply, HandshakeRequest, ProtocolVersion,
+    ExchangeFrameBody as CoreExchangeFrameBody, HandshakeReply, HandshakeRequest, ProtocolVersion,
     Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SignalVerb, Slot,
 };
 
@@ -546,26 +546,28 @@ pub enum SupervisorActionRejectionReason {
 }
 
 signal_channel! {
-    request EngineRequest {
-        Assert EngineLaunchProposal(EngineLaunchProposal),
-        Match EngineCatalogQuery(EngineCatalogQuery),
-        Retract EngineRetirement(EngineRetirement),
-        Match EngineStatusQuery(EngineStatusQuery),
-        Match ComponentStatusQuery(ComponentStatusQuery),
-        Mutate ComponentStartup(ComponentStartup),
-        Mutate ComponentShutdown(ComponentShutdown),
-    }
-    reply EngineReply {
-        EngineLaunchAccepted(EngineLaunchAcceptance),
-        EngineLaunchRejected(EngineLaunchRejection),
-        EngineCatalog(EngineCatalog),
-        EngineRetirementAccepted(EngineRetirementAcceptance),
-        EngineRetirementRejected(EngineRetirementRejection),
-        EngineStatus(EngineStatus),
-        ComponentStatus(ComponentStatus),
-        ComponentStatusMissing(ComponentStatusMissing),
-        SupervisorActionAccepted(SupervisorActionAcceptance),
-        SupervisorActionRejected(SupervisorActionRejection),
+    channel Engine {
+        request EngineRequest {
+            Assert EngineLaunchProposal(EngineLaunchProposal),
+            Match EngineCatalogQuery(EngineCatalogQuery),
+            Retract EngineRetirement(EngineRetirement),
+            Match EngineStatusQuery(EngineStatusQuery),
+            Match ComponentStatusQuery(ComponentStatusQuery),
+            Mutate ComponentStartup(ComponentStartup),
+            Mutate ComponentShutdown(ComponentShutdown),
+        }
+        reply EngineReply {
+            EngineLaunchAccepted(EngineLaunchAcceptance),
+            EngineLaunchRejected(EngineLaunchRejection),
+            EngineCatalog(EngineCatalog),
+            EngineRetirementAccepted(EngineRetirementAcceptance),
+            EngineRetirementRejected(EngineRetirementRejection),
+            EngineStatus(EngineStatus),
+            ComponentStatus(ComponentStatus),
+            ComponentStatusMissing(ComponentStatusMissing),
+            SupervisorActionAccepted(SupervisorActionAcceptance),
+            SupervisorActionRejected(SupervisorActionRejection),
+        }
     }
 }
 
@@ -578,19 +580,21 @@ pub mod supervision {
     use signal_core::signal_channel;
 
     signal_channel! {
-        request SupervisionRequest {
-            Match ComponentHello(ComponentHello),
-            Match ComponentReadinessQuery(ComponentReadinessQuery),
-            Match ComponentHealthQuery(ComponentHealthQuery),
-            Mutate GracefulStopRequest(GracefulStopRequest),
-        }
-        reply SupervisionReply {
-            ComponentIdentity(ComponentIdentity),
-            ComponentReady(ComponentReady),
-            ComponentNotReady(ComponentNotReady),
-            ComponentHealthReport(ComponentHealthReport),
-            GracefulStopAcknowledgement(GracefulStopAcknowledgement),
-            SupervisionUnimplemented(SupervisionUnimplemented),
+        channel Supervision {
+            request SupervisionRequest {
+                Match ComponentHello(ComponentHello),
+                Match ComponentReadinessQuery(ComponentReadinessQuery),
+                Match ComponentHealthQuery(ComponentHealthQuery),
+                Mutate GracefulStopRequest(GracefulStopRequest),
+            }
+            reply SupervisionReply {
+                ComponentIdentity(ComponentIdentity),
+                ComponentReady(ComponentReady),
+                ComponentNotReady(ComponentNotReady),
+                ComponentHealthReport(ComponentHealthReport),
+                GracefulStopAcknowledgement(GracefulStopAcknowledgement),
+                SupervisionUnimplemented(SupervisionUnimplemented),
+            }
         }
     }
 
@@ -609,8 +613,7 @@ pub mod supervision {
 }
 
 pub use supervision::{
-    Frame as SupervisionFrame, FrameBody as SupervisionFrameBody, SupervisionReply,
-    SupervisionRequest,
+    SupervisionFrame, SupervisionFrameBody, SupervisionReply, SupervisionRequest,
 };
 
 impl EngineRequest {
