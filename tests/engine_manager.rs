@@ -1,45 +1,75 @@
 use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
-use signal_core::{FrameBody, Request, SignalVerb};
+use signal_core::{
+    ExchangeIdentifier, ExchangeLane, LaneSequence, NonEmpty, Reply, RequestPayload, SessionEpoch,
+    SignalVerb, SubReply,
+};
 use signal_persona::{
     ComponentDesiredState, ComponentHealth, ComponentHealthQuery, ComponentHealthReport,
     ComponentHello, ComponentIdentity, ComponentKind, ComponentName, ComponentNotReady,
     ComponentNotReadyReason, ComponentReadinessQuery, ComponentReady, ComponentShutdown,
     ComponentStartup, ComponentStartupError, ComponentStatus, ComponentStatusMissing,
     ComponentStatusQuery, DependencyKind, EngineCatalog, EngineCatalogEntry, EngineCatalogQuery,
-    EngineGeneration, EngineLabel, EngineLaunchAcceptance, EngineLaunchProposal,
-    EngineLaunchRejection, EngineLaunchRejectionReason, EngineOperationKind, EnginePhase,
-    EngineReply, EngineRequest, EngineRetirement, EngineRetirementAcceptance,
+    EngineFrame, EngineFrameBody, EngineGeneration, EngineLabel, EngineLaunchAcceptance,
+    EngineLaunchProposal, EngineLaunchRejection, EngineLaunchRejectionReason, EngineOperationKind,
+    EnginePhase, EngineReply, EngineRequest, EngineRetirement, EngineRetirementAcceptance,
     EngineRetirementRejection, EngineRetirementRejectionReason, EngineStatus, EngineStatusQuery,
-    Frame, GracefulStopAcknowledgement, GracefulStopRequest, ResourceKind, SupervisionFrame,
-    SupervisionOperationKind, SupervisionProtocolVersion, SupervisionReply, SupervisionRequest,
-    SupervisionUnimplemented, SupervisionUnimplementedReason, SupervisorActionAcceptance,
-    SupervisorActionRejection, SupervisorActionRejectionReason, TimestampNanos,
+    GracefulStopAcknowledgement, GracefulStopRequest, ResourceKind, SupervisionFrame,
+    SupervisionFrameBody, SupervisionOperationKind, SupervisionProtocolVersion, SupervisionReply,
+    SupervisionRequest, SupervisionUnimplemented, SupervisionUnimplementedReason,
+    SupervisorActionAcceptance, SupervisorActionRejection, SupervisorActionRejectionReason,
+    TimestampNanos,
 };
+
+fn exchange() -> ExchangeIdentifier {
+    ExchangeIdentifier::new(
+        SessionEpoch::new(1),
+        ExchangeLane::Connector,
+        LaneSequence::first(),
+    )
+}
+
+fn completed_reply<ReplyPayload>(verb: SignalVerb, payload: ReplyPayload) -> Reply<ReplyPayload> {
+    Reply::completed(NonEmpty::single(SubReply::Ok { verb, payload }))
+}
 
 fn round_trip_engine_request(request: EngineRequest, expected_verb: SignalVerb) -> EngineRequest {
     assert_eq!(request.signal_verb(), expected_verb);
-    let frame = Frame::new(FrameBody::Request(request.clone().into_signal_request()));
+    let frame = EngineFrame::new(EngineFrameBody::Request {
+        exchange: exchange(),
+        request: request.clone().into_request(),
+    });
     let bytes = frame.encode_length_prefixed().expect("encode request");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode request");
+    let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode request");
 
     match decoded.into_body() {
-        FrameBody::Request(Request::Operation { verb, payload }) => {
-            assert_eq!(verb, expected_verb);
-            payload
+        EngineFrameBody::Request {
+            request: decoded_request,
+            ..
+        } => {
+            let operation = decoded_request.operations().head();
+            assert_eq!(operation.verb, expected_verb);
+            operation.payload.clone()
         }
         other => panic!("expected engine request, got {other:?}"),
     }
 }
 
 fn round_trip_engine_reply(reply: EngineReply) -> EngineReply {
-    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
-        reply.clone(),
-    )));
+    let frame = EngineFrame::new(EngineFrameBody::Reply {
+        exchange: exchange(),
+        reply: completed_reply(SignalVerb::Match, reply.clone()),
+    });
     let bytes = frame.encode_length_prefixed().expect("encode reply");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode reply");
+    let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode reply");
 
     match decoded.into_body() {
-        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => decoded_reply,
+        EngineFrameBody::Reply { reply, .. } => match reply {
+            Reply::Accepted { per_operation, .. } => match per_operation.into_head() {
+                SubReply::Ok { payload, .. } => payload,
+                other => panic!("expected accepted engine reply payload, got {other:?}"),
+            },
+            other => panic!("expected accepted engine reply, got {other:?}"),
+        },
         other => panic!("expected engine reply, got {other:?}"),
     }
 }
@@ -49,28 +79,42 @@ fn round_trip_supervision_request(
     expected_verb: SignalVerb,
 ) -> SupervisionRequest {
     assert_eq!(request.signal_verb(), expected_verb);
-    let frame = SupervisionFrame::new(FrameBody::Request(request.clone().into_signal_request()));
+    let frame = SupervisionFrame::new(SupervisionFrameBody::Request {
+        exchange: exchange(),
+        request: request.clone().into_request(),
+    });
     let bytes = frame.encode_length_prefixed().expect("encode request");
     let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode request");
 
     match decoded.into_body() {
-        FrameBody::Request(Request::Operation { verb, payload }) => {
-            assert_eq!(verb, expected_verb);
-            payload
+        SupervisionFrameBody::Request {
+            request: decoded_request,
+            ..
+        } => {
+            let operation = decoded_request.operations().head();
+            assert_eq!(operation.verb, expected_verb);
+            operation.payload.clone()
         }
         other => panic!("expected supervision request, got {other:?}"),
     }
 }
 
 fn round_trip_supervision_reply(reply: SupervisionReply) -> SupervisionReply {
-    let frame = SupervisionFrame::new(FrameBody::Reply(signal_core::Reply::operation(
-        reply.clone(),
-    )));
+    let frame = SupervisionFrame::new(SupervisionFrameBody::Reply {
+        exchange: exchange(),
+        reply: completed_reply(SignalVerb::Match, reply.clone()),
+    });
     let bytes = frame.encode_length_prefixed().expect("encode reply");
     let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode reply");
 
     match decoded.into_body() {
-        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => decoded_reply,
+        SupervisionFrameBody::Reply { reply, .. } => match reply {
+            Reply::Accepted { per_operation, .. } => match per_operation.into_head() {
+                SubReply::Ok { payload, .. } => payload,
+                other => panic!("expected accepted supervision reply payload, got {other:?}"),
+            },
+            other => panic!("expected accepted supervision reply, got {other:?}"),
+        },
         other => panic!("expected supervision reply, got {other:?}"),
     }
 }
@@ -176,15 +220,22 @@ fn engine_catalog_payloads_round_trip_through_nota_text() {
 #[test]
 fn engine_status_query_round_trips_through_length_prefixed_frame() {
     let request = EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine());
-    let frame = Frame::new(FrameBody::Request(request.clone().into_signal_request()));
+    let frame = EngineFrame::new(EngineFrameBody::Request {
+        exchange: exchange(),
+        request: request.clone().into_request(),
+    });
 
     let bytes = frame.encode_length_prefixed().expect("encode");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
+    let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode");
 
     match decoded.into_body() {
-        FrameBody::Request(Request::Operation { verb, payload }) => {
-            assert_eq!(verb, SignalVerb::Match);
-            assert_eq!(payload, request);
+        EngineFrameBody::Request {
+            request: decoded_request,
+            ..
+        } => {
+            let operation = decoded_request.operations().head();
+            assert_eq!(operation.verb, SignalVerb::Match);
+            assert_eq!(&operation.payload, &request);
         }
         other => panic!("expected Match request, got {other:?}"),
     }
@@ -195,14 +246,21 @@ fn component_status_query_round_trips_through_length_prefixed_frame() {
     let request = EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
         component: ComponentName::new("persona-router"),
     });
-    let frame = Frame::new(FrameBody::Request(request.clone().into_signal_request()));
+    let frame = EngineFrame::new(EngineFrameBody::Request {
+        exchange: exchange(),
+        request: request.clone().into_request(),
+    });
 
     let bytes = frame.encode_length_prefixed().expect("encode");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
+    let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode");
 
     match decoded.into_body() {
-        FrameBody::Request(Request::Operation { payload, .. }) => {
-            assert_eq!(payload, request);
+        EngineFrameBody::Request {
+            request: decoded_request,
+            ..
+        } => {
+            let operation = decoded_request.operations().head();
+            assert_eq!(&operation.payload, &request);
         }
         other => panic!("expected request, got {other:?}"),
     }
@@ -220,19 +278,7 @@ fn engine_status_reply_round_trips_with_component_health() {
             health: ComponentHealth::Running,
         }],
     });
-    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
-        reply.clone(),
-    )));
-
-    let bytes = frame.encode_length_prefixed().expect("encode");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
-
-    match decoded.into_body() {
-        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => {
-            assert_eq!(decoded_reply, reply);
-        }
-        other => panic!("expected engine status reply, got {other:?}"),
-    }
+    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 }
 
 #[test]
@@ -247,19 +293,7 @@ fn engine_status_reply_round_trips_message_kind() {
             health: ComponentHealth::Running,
         }],
     });
-    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
-        reply.clone(),
-    )));
-
-    let bytes = frame.encode_length_prefixed().expect("encode");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
-
-    match decoded.into_body() {
-        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => {
-            assert_eq!(decoded_reply, reply);
-        }
-        other => panic!("expected engine status reply, got {other:?}"),
-    }
+    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 }
 
 #[test]
@@ -274,19 +308,7 @@ fn engine_status_reply_round_trips_introspect_kind() {
             health: ComponentHealth::Running,
         }],
     });
-    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
-        reply.clone(),
-    )));
-
-    let bytes = frame.encode_length_prefixed().expect("encode");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
-
-    match decoded.into_body() {
-        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => {
-            assert_eq!(decoded_reply, reply);
-        }
-        other => panic!("expected engine status reply, got {other:?}"),
-    }
+    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 }
 
 #[test]
@@ -448,19 +470,7 @@ fn missing_component_status_reply_round_trips_with_component_name() {
     let reply = EngineReply::ComponentStatusMissing(ComponentStatusMissing {
         component: ComponentName::new("persona-terminal"),
     });
-    let frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
-        reply.clone(),
-    )));
-
-    let bytes = frame.encode_length_prefixed().expect("encode");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode");
-
-    match decoded.into_body() {
-        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => {
-            assert_eq!(decoded_reply, reply);
-        }
-        other => panic!("expected missing component reply, got {other:?}"),
-    }
+    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 }
 
 #[test]
@@ -468,14 +478,18 @@ fn supervisor_action_round_trips_with_typed_rejection() {
     let startup = EngineRequest::ComponentStartup(ComponentStartup {
         component: ComponentName::new("persona-system"),
     });
-    let startup_frame = Frame::new(FrameBody::Request(startup.clone().into_signal_request()));
+    let startup_frame = EngineFrame::new(EngineFrameBody::Request {
+        exchange: exchange(),
+        request: startup.clone().into_request(),
+    });
     let startup_bytes = startup_frame.encode_length_prefixed().expect("encode");
-    let startup_decoded = Frame::decode_length_prefixed(&startup_bytes).expect("decode");
+    let startup_decoded = EngineFrame::decode_length_prefixed(&startup_bytes).expect("decode");
 
     match startup_decoded.into_body() {
-        FrameBody::Request(Request::Operation { verb, payload }) => {
-            assert_eq!(verb, SignalVerb::Mutate);
-            assert_eq!(payload, startup);
+        EngineFrameBody::Request { request, .. } => {
+            let operation = request.operations().head();
+            assert_eq!(operation.verb, SignalVerb::Mutate);
+            assert_eq!(&operation.payload, &startup);
         }
         other => panic!("expected startup request, got {other:?}"),
     }
@@ -484,33 +498,22 @@ fn supervisor_action_round_trips_with_typed_rejection() {
         component: ComponentName::new("persona-system"),
         reason: SupervisorActionRejectionReason::ComponentAlreadyInDesiredState,
     });
-    let reply_frame = Frame::new(FrameBody::Reply(signal_core::Reply::operation(
-        reply.clone(),
-    )));
-    let reply_bytes = reply_frame.encode_length_prefixed().expect("encode");
-    let reply_decoded = Frame::decode_length_prefixed(&reply_bytes).expect("decode");
-
-    match reply_decoded.into_body() {
-        FrameBody::Reply(signal_core::Reply::Operation(decoded_reply)) => {
-            assert_eq!(decoded_reply, reply);
-        }
-        other => panic!("expected supervisor rejection reply, got {other:?}"),
-    }
+    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 }
 
 #[test]
-fn from_impls_lift_manager_payloads_into_channel_enums() {
+fn explicit_variants_lift_manager_payloads_into_channel_enums() {
     let shutdown = ComponentShutdown {
         component: ComponentName::new("persona-terminal"),
     };
-    let request: EngineRequest = shutdown.clone().into();
+    let request = EngineRequest::ComponentShutdown(shutdown.clone());
     assert_eq!(request, EngineRequest::ComponentShutdown(shutdown));
 
     let acceptance = SupervisorActionAcceptance {
         component: ComponentName::new("persona-terminal"),
         desired_state: ComponentDesiredState::Stopped,
     };
-    let reply: EngineReply = acceptance.clone().into();
+    let reply = EngineReply::SupervisorActionAccepted(acceptance.clone());
     assert_eq!(reply, EngineReply::SupervisorActionAccepted(acceptance));
 
     let hello = ComponentHello {
@@ -518,13 +521,13 @@ fn from_impls_lift_manager_payloads_into_channel_enums() {
         expected_kind: ComponentKind::Router,
         supervision_protocol_version: SupervisionProtocolVersion::new(1),
     };
-    let request: SupervisionRequest = hello.clone().into();
+    let request = SupervisionRequest::ComponentHello(hello.clone());
     assert_eq!(request, SupervisionRequest::ComponentHello(hello));
 
     let ready = ComponentReady {
         component_started_at: Some(TimestampNanos::new(42)),
     };
-    let reply: SupervisionReply = ready.clone().into();
+    let reply = SupervisionReply::ComponentReady(ready.clone());
     assert_eq!(reply, SupervisionReply::ComponentReady(ready));
 }
 
