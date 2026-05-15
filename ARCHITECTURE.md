@@ -248,6 +248,7 @@ SpawnEnvelope
   | engine_id:                    EngineId
   | component_kind:                ComponentKind
   | component_name:                ComponentName               (from signal-persona-auth)
+  | owner_identity:                OwnerIdentity               (from signal-persona-auth)
   | state_dir:                     WirePath                    (absolute path; empty when stateless)
   | domain_socket_path:            WirePath                    (the component's operational socket)
   | domain_socket_mode:            SocketMode                  (0600 internal | 0660 for Message)

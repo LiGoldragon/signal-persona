@@ -8,6 +8,9 @@ fn fixture_spawn_envelope() -> SpawnEnvelope {
         engine_id: signal_persona_auth::EngineId::new("default"),
         component_kind: ComponentKind::Message,
         component_name: signal_persona_auth::ComponentName::Message,
+        owner_identity: signal_persona_auth::OwnerIdentity::UnixUser(
+            signal_persona_auth::UnixUserId::new(1001),
+        ),
         state_dir: WirePath::new("/var/lib/persona/default/message"),
         domain_socket_path: WirePath::new("/var/run/persona/default/message.sock"),
         domain_socket_mode: SocketMode::new(0o660),
@@ -36,7 +39,7 @@ fn spawn_envelope_round_trips_through_nota_text() {
     assert_eq!(recovered, envelope);
     assert_eq!(
         text,
-        "(SpawnEnvelope default Message Message \"/var/lib/persona/default/message\" \"/var/run/persona/default/message.sock\" 432 \"/var/run/persona/default/message.supervision.sock\" 384 [(PeerSocket Router \"/var/run/persona/default/router.sock\")] \"/var/run/persona/default/persona.sock\" 1)"
+        "(SpawnEnvelope default Message Message (UnixUser 1001) \"/var/lib/persona/default/message\" \"/var/run/persona/default/message.sock\" 432 \"/var/run/persona/default/message.supervision.sock\" 384 [(PeerSocket Router \"/var/run/persona/default/router.sock\")] \"/var/run/persona/default/persona.sock\" 1)"
     );
 }
 

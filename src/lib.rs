@@ -440,6 +440,7 @@ pub struct SpawnEnvelope {
     pub engine_id: signal_persona_auth::EngineId,
     pub component_kind: ComponentKind,
     pub component_name: signal_persona_auth::ComponentName,
+    pub owner_identity: signal_persona_auth::OwnerIdentity,
     pub state_dir: WirePath,
     pub domain_socket_path: WirePath,
     pub domain_socket_mode: SocketMode,
