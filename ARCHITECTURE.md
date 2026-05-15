@@ -279,22 +279,22 @@ supervision sockets, applies the modes, and proceeds. Per
 ESSENCE §"Infrastructure mints identity, time, and sender" —
 the child does not invent its socket paths or component name.
 
-**State directory for stateless components** (per /144 §3.2): the
-`state_dir` field is always populated; stateless components
-(today: `persona-message-daemon`, `persona-system` in skeleton
-mode) leave the directory empty and **do not open a redb file
-until they own durable state**. Manager prepares the directory at
-envelope-mint time; child opens it only if it has state to
-persist.
+**State directory for stateless components**: the `state_dir` field
+is always populated; stateless components (today:
+`persona-message-daemon`, `persona-system` in skeleton mode) leave
+the directory empty and **do not open a redb file until they own
+durable state**. Manager prepares the directory at envelope-mint
+time; child opens it only if it has state to persist.
 
 **`SpawnEnvelope.component_name` naming note**: the field is typed
 as `signal-persona-auth::ComponentName` (closed enum of supervised
 local component principals), **not** the open `signal-persona::ComponentName`
-instance newtype. The two crates currently share the type name —
-operator's bead tracks the rename to
-`signal-persona-auth::ComponentPrincipal` /
-`signal-persona::ComponentInstanceName`. Until that rename lands,
-this field carries the **closed enum** form.
+instance newtype. The two crates currently share the type name; the
+intended split is `signal-persona-auth::ComponentPrincipal` for the
+closed enum of supervised principals and
+`signal-persona::ComponentInstanceName` for the open instance
+identifier. Until that rename lands, this field carries the
+**closed enum** form.
 
 ## Retired Vocabulary
 
