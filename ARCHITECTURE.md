@@ -91,9 +91,10 @@ The four prototype variants — `ComponentHello`,
 component**. A daemon that replies `SupervisionUnimplemented` to
 any of those four fails the prototype readiness witness.
 
-`signal-core` owns the frame envelope and the closed seven-root
-`SignalVerb` spine. This crate owns the manager payloads under
-those roots.
+`signal-core` owns the frame envelope and the closed six-root
+`SignalVerb` spine. Atomicity is structural — multi-op
+`Request<Payload>` commits as one unit. This crate owns the
+manager payloads under those roots.
 
 ## Typed Records
 
@@ -350,7 +351,7 @@ This crate does not own:
 | Constraint | Witness |
 |---|---|
 | Each named relation has its own `signal_channel!` declaration | source review in `src/lib.rs` |
-| Engine catalog creation/query/retirement are seven-root Signal operations | `engine_catalog_requests_round_trip_with_declared_signal_verbs` |
+| Engine catalog creation/query/retirement are six-root Signal operations | `engine_catalog_requests_round_trip_with_declared_signal_verbs` |
 | Every engine request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
 | Every supervision request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
 | `ComponentKind` has no `MessageProxy` variant | `nix flake check .#test-no-message-proxy-kind` |
