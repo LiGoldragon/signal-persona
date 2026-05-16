@@ -11,14 +11,13 @@ use signal_persona::{
     ComponentHello, ComponentIdentity, ComponentKind, ComponentName, ComponentNotReady,
     ComponentNotReadyReason, ComponentReadinessQuery, ComponentReady, ComponentShutdown,
     ComponentStartup, ComponentStatus, ComponentStatusMissing, ComponentStatusQuery, EngineCatalog,
-    EngineCatalogEntry, EngineCatalogQuery, EngineGeneration, EngineLabel,
-    EngineLaunchAcceptance, EngineLaunchProposal, EngineLaunchRejection,
-    EngineLaunchRejectionReason, EnginePhase, EngineReply, EngineRequest, EngineRetirement,
-    EngineRetirementAcceptance, EngineRetirementRejection, EngineRetirementRejectionReason,
-    EngineStatus, EngineStatusQuery, GracefulStopAcknowledgement,
-    GracefulStopRequest, SupervisionProtocolVersion, SupervisionReply, SupervisionRequest,
-    SupervisionUnimplemented, SupervisionUnimplementedReason, SupervisorActionAcceptance,
-    SupervisorActionRejection, SupervisorActionRejectionReason,
+    EngineCatalogEntry, EngineCatalogQuery, EngineGeneration, EngineLabel, EngineLaunchAcceptance,
+    EngineLaunchProposal, EngineLaunchRejection, EngineLaunchRejectionReason, EnginePhase,
+    EngineReply, EngineRequest, EngineRetirement, EngineRetirementAcceptance,
+    EngineRetirementRejection, EngineRetirementRejectionReason, EngineStatus, EngineStatusQuery,
+    GracefulStopAcknowledgement, GracefulStopRequest, SupervisionProtocolVersion, SupervisionReply,
+    SupervisionRequest, SupervisionUnimplemented, SupervisionUnimplementedReason,
+    SupervisorActionAcceptance, SupervisorActionRejection, SupervisorActionRejectionReason,
 };
 use signal_persona_auth::EngineId;
 
@@ -58,7 +57,9 @@ where
 #[test]
 fn canonical_engine_requests_round_trip() {
     round_trip(
-        EngineRequest::EngineLaunchProposal(EngineLaunchProposal { label: engine_label() }),
+        EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
+            label: engine_label(),
+        }),
         "(EngineLaunchProposal example-engine)",
     );
     round_trip(
@@ -66,7 +67,9 @@ fn canonical_engine_requests_round_trip() {
         "(EngineCatalogQuery AllEngines)",
     );
     round_trip(
-        EngineRequest::EngineRetirement(EngineRetirement { engine: engine_id() }),
+        EngineRequest::EngineRetirement(EngineRetirement {
+            engine: engine_id(),
+        }),
         "(EngineRetirement prototype)",
     );
     round_trip(
@@ -126,7 +129,9 @@ fn canonical_engine_replies_round_trip() {
         "(EngineCatalog [(EngineCatalogEntry prototype example-engine Running)])",
     );
     round_trip(
-        EngineReply::EngineRetirementAccepted(EngineRetirementAcceptance { engine: engine_id() }),
+        EngineReply::EngineRetirementAccepted(EngineRetirementAcceptance {
+            engine: engine_id(),
+        }),
         "(EngineRetirementAcceptance prototype)",
     );
     round_trip(
