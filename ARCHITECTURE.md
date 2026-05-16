@@ -92,7 +92,8 @@ component**. A daemon that replies `SupervisionUnimplemented` to
 any of those four fails the prototype readiness witness.
 
 `signal-core` owns the frame envelope and the closed six-root
-`SignalVerb` spine. Atomicity is structural — multi-op
+`SignalVerb` spine (`Assert` / `Mutate` / `Retract` / `Match` /
+`Subscribe` / `Validate`). Atomicity is structural — multi-op
 `Request<Payload>` commits as one unit. This crate owns the
 manager payloads under those roots.
 
@@ -351,24 +352,49 @@ This crate does not own:
 
 | Constraint | Witness |
 |---|---|
-| Each named relation has its own `signal_channel!` declaration | source review in `src/lib.rs` |
-| Engine catalog creation/query/retirement are six-root Signal operations | `engine_catalog_requests_round_trip_with_declared_signal_verbs` |
-| Every engine request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
-| Every supervision request/reply variant round-trips through a length-prefixed frame | `nix flake check .#test-engine-manager` |
-| `ComponentKind` has no `MessageProxy` variant | `nix flake check .#test-no-message-proxy-kind` |
-| Supervision requests carry no domain payload (no MessageBody, RoleClaim, TerminalInput) | `nix flake check .#test-supervision-no-domain-payload` |
-| `SupervisionReply::SupervisionUnimplemented` exists and round-trips | `nix flake check .#test-supervision-unimplemented-round-trip` |
-| `SpawnEnvelope` is a closed typed record (no string-keyed extension) | source review + round-trip in `tests/spawn_envelope.rs` |
-| Contract payload values round-trip through NOTA without schema mirrors | `engine_status_contract_payload_round_trips_through_nota` |
-| Requests carry no caller identity, class, proof, sender, timestamp, or minted engine id | source review in `src/lib.rs` |
-| Closed enums have no `Unknown` escape variant | source review in `src/lib.rs` |
-| Contract compatibility with `signal-core` is explicit | `nix flake check .#test-version` |
+| Each named relation has its own `signal_channel!` declaration. | source review in `src/lib.rs` |
+| Engine catalog creation/query/retirement are six-root Signal operations. | `engine_catalog_requests_round_trip_with_declared_signal_verbs` |
+| Every engine request/reply variant round-trips through a length-prefixed frame. | `nix flake check .#test-engine-manager` |
+| Every supervision request/reply variant round-trips through a length-prefixed frame. | `nix flake check .#test-engine-manager` |
+| `ComponentKind` has no `MessageProxy` variant. | `nix flake check .#test-no-message-proxy-kind` |
+| Supervision requests carry no domain payload (no MessageBody, RoleClaim, TerminalInput). | `nix flake check .#test-supervision-no-domain-payload` |
+| `SupervisionReply::SupervisionUnimplemented` exists and round-trips. | `nix flake check .#test-supervision-unimplemented-round-trip` |
+| `SpawnEnvelope` is a closed typed record (no string-keyed extension). | source review + round-trip in `tests/spawn_envelope.rs` |
+| Contract payload values round-trip through NOTA without schema mirrors. | `engine_status_contract_payload_round_trips_through_nota` |
+| Requests carry no caller identity, class, proof, sender, timestamp, or minted engine id. | source review in `src/lib.rs` |
+| Wire enums contain no `Unknown` variant. | source review in `src/lib.rs`: every closed enum (`EnginePhase`, `ComponentKind`, `ComponentDesiredState`, `ComponentHealth`, etc.) is exhaustively matched in `tests/engine_manager.rs`; adding an `Unknown` variant breaks the match. |
+| Any record name containing the word `Unknown` represents a positive "entity not in our state" rejection, not a polling-shape escape hatch. | This crate has no such records today. |
+| Every `signal_channel!` request variant has a typed `signal_verb()` mapping. | `engine_catalog_requests_round_trip_with_declared_signal_verbs` and supervision-relation round-trip witness assert each variant's expected root. |
+| Round-trip witnesses cover every variant in rkyv. | `tests/engine_manager.rs` covers every request and reply variant for both relations. |
+| Round-trip witnesses cover every variant in NOTA. | `examples/canonical.nota` holds one canonical text example per request/reply variant for both relations; round-trip tests parse and re-emit each. |
+| No stringly-typed dispatch (`match s.as_str()`) for closed-set states. | All phase / kind / health / readiness / reason fields are typed closed enums. |
+| Contract crate dependencies use a named API reference (branch or tag), not a raw revision pin. | `Cargo.toml` review: `signal-core` and downstream contract crates declare `git = "..."` with a named-branch shape; raw `rev = "..."` pins are not used. |
+| Contract compatibility with `signal-core` is explicit. | `nix flake check .#test-version` |
+
+## NOTA codec quirk on `signal_channel!` payload heads
+
+The `signal_channel!` macro emits a request variant's NOTA head as
+the **payload's record head**, not the Rust variant name. For
+example, `EngineRequest::EngineLaunchProposal(EngineLaunchProposal { .. })`
+encodes as `(EngineLaunchProposal (...))` (the payload head happens
+to match the variant name here); a future variant whose payload type
+differs from the variant name encodes under the **payload** head.
+Canonical examples and round-trip tests carry the payload heads.
+
+## Versioning Pin Discipline
+
+This crate depends on `signal-core` via a named-branch reference,
+not a raw revision pin. The destination is a stable `signal-core`
+API branch/bookmark once that lane is declared; raw `rev = "..."`
+pins are not used.
 
 ## Code Map
 
 ```text
 src/lib.rs              manager payload records and both signal_channel! declarations
+examples/canonical.nota one canonical example per request/reply variant for both relations
 tests/engine_manager.rs frame and NOTA round trips for engine catalog and supervision records
+tests/spawn_envelope.rs SpawnEnvelope round trips
 tests/version.rs        signal-core version witness
 ```
 
