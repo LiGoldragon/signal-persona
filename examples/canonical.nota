@@ -1,0 +1,100 @@
+;; Canonical NOTA examples for signal-persona.
+;;
+;; Two relations on this crate's wire surface, each its own
+;; `signal_channel!`. One example per request/reply variant per
+;; relation. The text-form head is the payload's record-head, not the
+;; *Request / *Reply variant name — see ARCHITECTURE.md §"NOTA codec
+;; quirk on `signal_channel!` payload heads."
+;;
+;; Round-trip witness: tests/canonical_examples.rs parses each record
+;; through `<T as NotaDecode>::decode`, re-encodes it, and asserts
+;; the canonical text equals what is written here.
+
+;; ─── Engine-catalog relation requests (EngineRequest) ─────────────
+
+;; EngineRequest::EngineLaunchProposal
+(EngineLaunchProposal example-engine)
+
+;; EngineRequest::EngineCatalogQuery
+(EngineCatalogQuery AllEngines)
+
+;; EngineRequest::EngineRetirement
+(EngineRetirement prototype)
+
+;; EngineRequest::EngineStatusQuery
+(EngineStatusQuery WholeEngine)
+
+;; EngineRequest::ComponentStatusQuery
+(ComponentStatusQuery persona-router)
+
+;; EngineRequest::ComponentStartup
+(ComponentStartup persona-router)
+
+;; EngineRequest::ComponentShutdown
+(ComponentShutdown persona-router)
+
+;; ─── Engine-catalog relation replies (EngineReply) ────────────────
+
+;; EngineReply::EngineLaunchAccepted
+(EngineLaunchAcceptance prototype example-engine)
+
+;; EngineReply::EngineLaunchRejected
+(EngineLaunchRejection example-engine EngineLabelAlreadyExists)
+
+;; EngineReply::EngineCatalog
+(EngineCatalog [(EngineCatalogEntry prototype example-engine Running)])
+
+;; EngineReply::EngineRetirementAccepted
+(EngineRetirementAcceptance prototype)
+
+;; EngineReply::EngineRetirementRejected
+(EngineRetirementRejection prototype EngineNotFound)
+
+;; EngineReply::EngineStatus
+(EngineStatus 1 Running [(ComponentStatus persona-router Router Running Running)])
+
+;; EngineReply::ComponentStatus
+(ComponentStatus persona-router Router Running Running)
+
+;; EngineReply::ComponentStatusMissing
+(ComponentStatusMissing persona-router)
+
+;; EngineReply::SupervisorActionAccepted
+(SupervisorActionAcceptance persona-router Running)
+
+;; EngineReply::SupervisorActionRejected
+(SupervisorActionRejection persona-router ComponentNotManaged)
+
+;; ─── Supervision relation requests (SupervisionRequest) ───────────
+
+;; SupervisionRequest::ComponentHello
+(ComponentHello Router Router 1)
+
+;; SupervisionRequest::ComponentReadinessQuery
+(ComponentReadinessQuery persona-router)
+
+;; SupervisionRequest::ComponentHealthQuery
+(ComponentHealthQuery persona-router)
+
+;; SupervisionRequest::GracefulStopRequest
+(GracefulStopRequest persona-router)
+
+;; ─── Supervision relation replies (SupervisionReply) ──────────────
+
+;; SupervisionReply::ComponentIdentity — no last fatal startup error
+(ComponentIdentity Router Router 1 None)
+
+;; SupervisionReply::ComponentReady — started timestamp unknown
+(ComponentReady None)
+
+;; SupervisionReply::ComponentNotReady
+(ComponentNotReady NotYetBound)
+
+;; SupervisionReply::ComponentHealthReport
+(ComponentHealthReport Running)
+
+;; SupervisionReply::GracefulStopAcknowledgement
+(GracefulStopAcknowledgement None)
+
+;; SupervisionReply::SupervisionUnimplemented — NotInPrototypeScope
+(SupervisionUnimplemented (NotInPrototypeScope))
