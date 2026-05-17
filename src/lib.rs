@@ -76,13 +76,13 @@ pub enum EnginePhase {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ComponentKind {
     Mind,
-    Orchestrate,
     Router,
     Message,
     System,
     Harness,
     Terminal,
     Introspect,
+    Orchestrate,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
