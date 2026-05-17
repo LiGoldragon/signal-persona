@@ -297,6 +297,21 @@ fn engine_status_reply_round_trips_message_kind() {
 }
 
 #[test]
+fn engine_status_reply_round_trips_orchestrate_kind() {
+    let reply = EngineReply::EngineStatus(EngineStatus {
+        generation: EngineGeneration::new(11),
+        phase: EnginePhase::Running,
+        components: vec![ComponentStatus {
+            name: ComponentName::new("persona-orchestrate"),
+            kind: ComponentKind::Orchestrate,
+            desired_state: ComponentDesiredState::Running,
+            health: ComponentHealth::Running,
+        }],
+    });
+    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
+}
+
+#[test]
 fn engine_status_reply_round_trips_introspect_kind() {
     let reply = EngineReply::EngineStatus(EngineStatus {
         generation: EngineGeneration::new(10),
@@ -686,6 +701,7 @@ fn component_kind_does_not_define_message_proxy() {
 
     assert!(!source.contains("MessageProxy"));
     assert!(source.contains("Message,"));
+    assert!(source.contains("Orchestrate,"));
     assert!(source.contains("Introspect,"));
 }
 

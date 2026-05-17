@@ -107,6 +107,7 @@ names, or future supervised component instances.
 
 ```text
 Mind
+Orchestrate
 Router
 Message
 System
