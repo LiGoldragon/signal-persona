@@ -1,23 +1,21 @@
 //! Canonical examples round-trip witness.
 //!
 //! Parses `examples/canonical.nota` end-to-end, decoding each record
-//! as an `EngineRequest`, `EngineReply`, `SupervisionRequest`, or
+//! as an `EngineOperation`, `EngineReply`, `SupervisionOperation`, or
 //! `SupervisionReply` and asserting the re-encoded text equals the
 //! canonical form.
 
 use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
 use signal_persona::{
-    ComponentDesiredState, ComponentHealth, ComponentHealthQuery, ComponentHealthReport,
-    ComponentHello, ComponentIdentity, ComponentKind, ComponentName, ComponentNotReady,
-    ComponentNotReadyReason, ComponentReadinessQuery, ComponentReady, ComponentShutdown,
-    ComponentStartup, ComponentStatus, ComponentStatusMissing, ComponentStatusQuery, EngineCatalog,
-    EngineCatalogEntry, EngineCatalogQuery, EngineGeneration, EngineLabel, EngineLaunchAcceptance,
-    EngineLaunchProposal, EngineLaunchRejection, EngineLaunchRejectionReason, EnginePhase,
-    EngineReply, EngineRequest, EngineRetirement, EngineRetirementAcceptance,
-    EngineRetirementRejection, EngineRetirementRejectionReason, EngineStatus, EngineStatusQuery,
-    GracefulStopAcknowledgement, GracefulStopRequest, SupervisionProtocolVersion, SupervisionReply,
-    SupervisionRequest, SupervisionUnimplemented, SupervisionUnimplementedReason,
-    SupervisorActionAcceptance, SupervisorActionRejection, SupervisorActionRejectionReason,
+    ActionAcceptance, ActionRejection, ActionRejectionReason, ComponentDesiredState,
+    ComponentHealth, ComponentHealthReport, ComponentIdentity, ComponentKind, ComponentName,
+    ComponentNotReady, ComponentNotReadyReason, ComponentReady, ComponentShutdown,
+    ComponentStartup, ComponentStatus, EngineCatalog, EngineCatalogEntry, EngineCatalogScope,
+    EngineGeneration, EngineLabel, EngineLaunch, EngineOperation, EnginePhase, EngineReply,
+    EngineStatus, EngineStatusScope, GracefulStopAcknowledgement, LaunchAcceptance,
+    LaunchRejection, LaunchRejectionReason, Presence, Query, RetirementRejection,
+    RetirementRejectionReason, SupervisionOperation, SupervisionProtocolVersion, SupervisionReply,
+    SupervisionUnimplemented, SupervisionUnimplementedReason, supervision,
 };
 use signal_persona_auth::EngineId;
 
@@ -55,44 +53,37 @@ where
 }
 
 #[test]
-fn canonical_engine_requests_round_trip() {
+fn canonical_engine_operations_round_trip() {
     round_trip(
-        EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
+        EngineOperation::Launch(EngineLaunch {
             label: engine_label(),
         }),
-        "(EngineLaunchProposal (example-engine))",
+        "(Launch (example-engine))",
     );
     round_trip(
-        EngineRequest::EngineCatalogQuery(EngineCatalogQuery::all_engines()),
-        "(EngineCatalogQuery (AllEngines))",
+        EngineOperation::Query(Query::Catalog(EngineCatalogScope::AllEngines)),
+        "(Query (Catalog AllEngines))",
     );
     round_trip(
-        EngineRequest::EngineRetirement(EngineRetirement {
-            engine: engine_id(),
-        }),
-        "(EngineRetirement (prototype))",
+        EngineOperation::Query(Query::EngineStatus(EngineStatusScope::WholeEngine)),
+        "(Query (EngineStatus WholeEngine))",
     );
     round_trip(
-        EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine()),
-        "(EngineStatusQuery (WholeEngine))",
+        EngineOperation::Query(Query::ComponentStatus(router_name())),
+        "(Query (ComponentStatus persona-router))",
     );
+    round_trip(EngineOperation::Retire(engine_id()), "(Retire prototype)");
     round_trip(
-        EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
+        EngineOperation::Start(ComponentStartup {
             component: router_name(),
         }),
-        "(ComponentStatusQuery (persona-router))",
+        "(Start (persona-router))",
     );
     round_trip(
-        EngineRequest::ComponentStartup(ComponentStartup {
+        EngineOperation::Stop(ComponentShutdown {
             component: router_name(),
         }),
-        "(ComponentStartup (persona-router))",
-    );
-    round_trip(
-        EngineRequest::ComponentShutdown(ComponentShutdown {
-            component: router_name(),
-        }),
-        "(ComponentShutdown (persona-router))",
+        "(Stop (persona-router))",
     );
 }
 
@@ -105,41 +96,28 @@ fn canonical_engine_replies_round_trip() {
         health: ComponentHealth::Running,
     };
     round_trip(
-        EngineReply::EngineLaunchAccepted(EngineLaunchAcceptance {
+        EngineReply::Launched(LaunchAcceptance {
             engine: engine_id(),
             label: engine_label(),
         }),
-        "(EngineLaunchAccepted (prototype example-engine))",
+        "(Launched (prototype example-engine))",
     );
     round_trip(
-        EngineReply::EngineLaunchRejected(EngineLaunchRejection {
+        EngineReply::LaunchRejected(LaunchRejection {
             label: engine_label(),
-            reason: EngineLaunchRejectionReason::EngineLabelAlreadyExists,
+            reason: LaunchRejectionReason::EngineLabelAlreadyExists,
         }),
-        "(EngineLaunchRejected (example-engine EngineLabelAlreadyExists))",
+        "(LaunchRejected (example-engine EngineLabelAlreadyExists))",
     );
     round_trip(
-        EngineReply::EngineCatalog(EngineCatalog {
+        EngineReply::Catalog(EngineCatalog {
             engines: vec![EngineCatalogEntry {
                 engine: engine_id(),
                 label: engine_label(),
                 phase: EnginePhase::Running,
             }],
         }),
-        "(EngineCatalog ([(prototype example-engine Running)]))",
-    );
-    round_trip(
-        EngineReply::EngineRetirementAccepted(EngineRetirementAcceptance {
-            engine: engine_id(),
-        }),
-        "(EngineRetirementAccepted (prototype))",
-    );
-    round_trip(
-        EngineReply::EngineRetirementRejected(EngineRetirementRejection {
-            engine: engine_id(),
-            reason: EngineRetirementRejectionReason::EngineNotFound,
-        }),
-        "(EngineRetirementRejected (prototype EngineNotFound))",
+        "(Catalog ([(prototype example-engine Running)]))",
     );
     round_trip(
         EngineReply::EngineStatus(EngineStatus {
@@ -154,96 +132,96 @@ fn canonical_engine_replies_round_trip() {
         "(ComponentStatus (persona-router Router Running Running))",
     );
     round_trip(
-        EngineReply::ComponentStatusMissing(ComponentStatusMissing {
-            component: router_name(),
+        EngineReply::ComponentMissing(router_name()),
+        "(ComponentMissing persona-router)",
+    );
+    round_trip(EngineReply::Retired(engine_id()), "(Retired prototype)");
+    round_trip(
+        EngineReply::RetireRejected(RetirementRejection {
+            engine: engine_id(),
+            reason: RetirementRejectionReason::EngineNotFound,
         }),
-        "(ComponentStatusMissing (persona-router))",
+        "(RetireRejected (prototype EngineNotFound))",
     );
     round_trip(
-        EngineReply::SupervisorActionAccepted(SupervisorActionAcceptance {
+        EngineReply::ActionAccepted(ActionAcceptance {
             component: router_name(),
             desired_state: ComponentDesiredState::Running,
         }),
-        "(SupervisorActionAccepted (persona-router Running))",
+        "(ActionAccepted (persona-router Running))",
     );
     round_trip(
-        EngineReply::SupervisorActionRejected(SupervisorActionRejection {
+        EngineReply::ActionRejected(ActionRejection {
             component: router_name(),
-            reason: SupervisorActionRejectionReason::ComponentNotManaged,
+            reason: ActionRejectionReason::ComponentNotManaged,
         }),
-        "(SupervisorActionRejected (persona-router ComponentNotManaged))",
+        "(ActionRejected (persona-router ComponentNotManaged))",
     );
 }
 
 #[test]
-fn canonical_supervision_requests_round_trip() {
+fn canonical_supervision_operations_round_trip() {
     round_trip(
-        SupervisionRequest::ComponentHello(ComponentHello {
+        SupervisionOperation::Announce(Presence {
             expected_component: ComponentName::new("Router"),
             expected_kind: ComponentKind::Router,
             supervision_protocol_version: SupervisionProtocolVersion::new(1),
         }),
-        "(ComponentHello (\"Router\" Router 1))",
+        "(Announce (\"Router\" Router 1))",
     );
     round_trip(
-        SupervisionRequest::ComponentReadinessQuery(ComponentReadinessQuery {
-            component: router_name(),
-        }),
-        "(ComponentReadinessQuery (persona-router))",
+        SupervisionOperation::Query(supervision::Query::ReadinessStatus(router_name())),
+        "(Query (ReadinessStatus persona-router))",
     );
     round_trip(
-        SupervisionRequest::ComponentHealthQuery(ComponentHealthQuery {
-            component: router_name(),
-        }),
-        "(ComponentHealthQuery (persona-router))",
+        SupervisionOperation::Query(supervision::Query::HealthStatus(router_name())),
+        "(Query (HealthStatus persona-router))",
     );
     round_trip(
-        SupervisionRequest::GracefulStopRequest(GracefulStopRequest {
-            component: router_name(),
-        }),
-        "(GracefulStopRequest (persona-router))",
+        SupervisionOperation::Stop(router_name()),
+        "(Stop persona-router)",
     );
 }
 
 #[test]
 fn canonical_supervision_replies_round_trip() {
     round_trip(
-        SupervisionReply::ComponentIdentity(ComponentIdentity {
+        SupervisionReply::Identified(ComponentIdentity {
             name: ComponentName::new("Router"),
             kind: ComponentKind::Router,
             supervision_protocol_version: SupervisionProtocolVersion::new(1),
             last_fatal_startup_error: None,
         }),
-        "(ComponentIdentity (\"Router\" Router 1 None))",
+        "(Identified (\"Router\" Router 1 None))",
     );
     round_trip(
-        SupervisionReply::ComponentReady(ComponentReady {
+        SupervisionReply::Ready(ComponentReady {
             component_started_at: None,
         }),
-        "(ComponentReady (None))",
+        "(Ready (None))",
     );
     round_trip(
-        SupervisionReply::ComponentNotReady(ComponentNotReady {
+        SupervisionReply::NotReady(ComponentNotReady {
             reason: ComponentNotReadyReason::NotYetBound,
         }),
-        "(ComponentNotReady (NotYetBound))",
+        "(NotReady (NotYetBound))",
     );
     round_trip(
-        SupervisionReply::ComponentHealthReport(ComponentHealthReport {
+        SupervisionReply::HealthReport(ComponentHealthReport {
             health: ComponentHealth::Running,
         }),
-        "(ComponentHealthReport (Running))",
+        "(HealthReport (Running))",
     );
     round_trip(
-        SupervisionReply::GracefulStopAcknowledgement(GracefulStopAcknowledgement {
+        SupervisionReply::StopAcknowledged(GracefulStopAcknowledgement {
             drain_completed_at: None,
         }),
-        "(GracefulStopAcknowledgement (None))",
+        "(StopAcknowledged (None))",
     );
     round_trip(
-        SupervisionReply::SupervisionUnimplemented(SupervisionUnimplemented {
+        SupervisionReply::Unimplemented(SupervisionUnimplemented {
             reason: SupervisionUnimplementedReason::NotInPrototypeScope,
         }),
-        "(SupervisionUnimplemented ((NotInPrototypeScope)))",
+        "(Unimplemented ((NotInPrototypeScope)))",
     );
 }

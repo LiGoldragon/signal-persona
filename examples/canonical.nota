@@ -1,58 +1,52 @@
 ;; Canonical NOTA examples for signal-persona.
 ;;
-;; Two relations on this crate's wire surface, each its own
-;; `signal_channel!`. One example per request/reply variant per
-;; relation. Per the three-case PascalCase rule, each
-;; data-carrying enum variant on the wire is `(VariantName
-;; <payload>)`; the inner payload is a NotaRecord-derived struct
-;; encoded as a tag-less `(fields…)`. The outer head names the
-;; *Request / *Reply variant (e.g. `EngineLaunchAccepted`), which
-;; can differ from the payload type name (e.g.
-;; `EngineLaunchAcceptance`).
+;; Two relations, each its own `signal_channel!`. The contract speaks
+;; contract-local verbs per
+;; reports/designer/241-signal-architecture-migration-guide.md:
+;; - Engine relation operations: Launch / Query / Retire / Start / Stop.
+;; - Supervision relation operations: Announce / Query / Stop.
+;;
+;; The wire form for every operation is `(VariantName <payload>)`. The
+;; inner payload is either a NotaRecord-derived struct encoded
+;; tag-less (case 2 of the three-case rule), a bare NotaTransparent
+;; value, a hand-encoded NotaSum, or a bare PascalCase NotaEnum value.
 ;;
 ;; Round-trip witness: tests/canonical_examples.rs parses each record
-;; through `<T as NotaDecode>::decode`, re-encodes it, and asserts
-;; the canonical text equals what is written here.
+;; and asserts the re-encoded text equals the canonical form.
 
-;; ─── Engine-catalog relation requests (EngineRequest) ─────────────
+;; ─── Engine relation operations (EngineOperation) ──────────────────
 
-;; EngineRequest::EngineLaunchProposal
-(EngineLaunchProposal (example-engine))
+;; EngineOperation::Launch
+(Launch (example-engine))
 
-;; EngineRequest::EngineCatalogQuery
-(EngineCatalogQuery (AllEngines))
+;; EngineOperation::Query — engine catalog
+(Query (Catalog AllEngines))
 
-;; EngineRequest::EngineRetirement
-(EngineRetirement (prototype))
+;; EngineOperation::Query — engine status
+(Query (EngineStatus WholeEngine))
 
-;; EngineRequest::EngineStatusQuery
-(EngineStatusQuery (WholeEngine))
+;; EngineOperation::Query — component status
+(Query (ComponentStatus persona-router))
 
-;; EngineRequest::ComponentStatusQuery
-(ComponentStatusQuery (persona-router))
+;; EngineOperation::Retire
+(Retire prototype)
 
-;; EngineRequest::ComponentStartup
-(ComponentStartup (persona-router))
+;; EngineOperation::Start
+(Start (persona-router))
 
-;; EngineRequest::ComponentShutdown
-(ComponentShutdown (persona-router))
+;; EngineOperation::Stop
+(Stop (persona-router))
 
-;; ─── Engine-catalog relation replies (EngineReply) ────────────────
+;; ─── Engine relation replies (EngineReply) ────────────────────────
 
-;; EngineReply::EngineLaunchAccepted
-(EngineLaunchAccepted (prototype example-engine))
+;; EngineReply::Launched
+(Launched (prototype example-engine))
 
-;; EngineReply::EngineLaunchRejected
-(EngineLaunchRejected (example-engine EngineLabelAlreadyExists))
+;; EngineReply::LaunchRejected
+(LaunchRejected (example-engine EngineLabelAlreadyExists))
 
-;; EngineReply::EngineCatalog
-(EngineCatalog ([(prototype example-engine Running)]))
-
-;; EngineReply::EngineRetirementAccepted
-(EngineRetirementAccepted (prototype))
-
-;; EngineReply::EngineRetirementRejected
-(EngineRetirementRejected (prototype EngineNotFound))
+;; EngineReply::Catalog
+(Catalog ([(prototype example-engine Running)]))
 
 ;; EngineReply::EngineStatus
 (EngineStatus (1 Running [(persona-router Router Running Running)]))
@@ -60,45 +54,51 @@
 ;; EngineReply::ComponentStatus
 (ComponentStatus (persona-router Router Running Running))
 
-;; EngineReply::ComponentStatusMissing
-(ComponentStatusMissing (persona-router))
+;; EngineReply::ComponentMissing
+(ComponentMissing persona-router)
 
-;; EngineReply::SupervisorActionAccepted
-(SupervisorActionAccepted (persona-router Running))
+;; EngineReply::Retired
+(Retired prototype)
 
-;; EngineReply::SupervisorActionRejected
-(SupervisorActionRejected (persona-router ComponentNotManaged))
+;; EngineReply::RetireRejected
+(RetireRejected (prototype EngineNotFound))
 
-;; ─── Supervision relation requests (SupervisionRequest) ───────────
+;; EngineReply::ActionAccepted
+(ActionAccepted (persona-router Running))
 
-;; SupervisionRequest::ComponentHello
-(ComponentHello ("Router" Router 1))
+;; EngineReply::ActionRejected
+(ActionRejected (persona-router ComponentNotManaged))
 
-;; SupervisionRequest::ComponentReadinessQuery
-(ComponentReadinessQuery (persona-router))
+;; ─── Supervision relation operations (SupervisionOperation) ───────
 
-;; SupervisionRequest::ComponentHealthQuery
-(ComponentHealthQuery (persona-router))
+;; SupervisionOperation::Announce
+(Announce ("Router" Router 1))
 
-;; SupervisionRequest::GracefulStopRequest
-(GracefulStopRequest (persona-router))
+;; SupervisionOperation::Query — readiness
+(Query (ReadinessStatus persona-router))
+
+;; SupervisionOperation::Query — health
+(Query (HealthStatus persona-router))
+
+;; SupervisionOperation::Stop
+(Stop persona-router)
 
 ;; ─── Supervision relation replies (SupervisionReply) ──────────────
 
-;; SupervisionReply::ComponentIdentity — no last fatal startup error
-(ComponentIdentity ("Router" Router 1 None))
+;; SupervisionReply::Identified — no last fatal startup error
+(Identified ("Router" Router 1 None))
 
-;; SupervisionReply::ComponentReady — started timestamp unknown
-(ComponentReady (None))
+;; SupervisionReply::Ready — started timestamp unknown
+(Ready (None))
 
-;; SupervisionReply::ComponentNotReady
-(ComponentNotReady (NotYetBound))
+;; SupervisionReply::NotReady
+(NotReady (NotYetBound))
 
-;; SupervisionReply::ComponentHealthReport
-(ComponentHealthReport (Running))
+;; SupervisionReply::HealthReport
+(HealthReport (Running))
 
-;; SupervisionReply::GracefulStopAcknowledgement
-(GracefulStopAcknowledgement (None))
+;; SupervisionReply::StopAcknowledged
+(StopAcknowledged (None))
 
-;; SupervisionReply::SupervisionUnimplemented — NotInPrototypeScope
-(SupervisionUnimplemented ((NotInPrototypeScope)))
+;; SupervisionReply::Unimplemented — NotInPrototypeScope
+(Unimplemented ((NotInPrototypeScope)))

@@ -9,60 +9,57 @@ NOTA text derives on the same types. Runtime actors, storage, daemon startup,
 CLI parsing, terminal effects, routing policy, and NOTA surface policy live
 outside this crate.
 
-## MUST IMPLEMENT — signal architecture migration
+## Migration history — contract-local verbs (2026-05-19)
 
-This contract is migrating to contract-local verbs per
-`primary/reports/designer/238-signal-architecture-redirection-contract-local-verbs.md`
-and `primary/reports/designer/239-signal-architecture-migration-plan.md`.
+This crate migrated from `signal-core` to `signal-frame` and from
+universal `SignalVerb`-tagged variants to contract-local verbs per
+`primary/reports/designer/241-signal-architecture-migration-guide.md`.
 
-This crate carries **two relations**, each needs its own
-contract-local verb pass:
+Engine relation operation roots: `Launch` / `Query` / `Retire` /
+`Start` / `Stop`. The five former `*Query` variants
+(`EngineCatalogQuery`, `EngineStatusQuery`, `ComponentStatusQuery`)
+lifted into a single `Query` operation root whose payload is a
+closed enum naming the read target.
 
-Engine-catalog / CLI relation: drop the SignalVerb prefixes on
-`EngineLaunchProposal` (verb `Launch` or `Propose`, payload an engine
-launch noun), `EngineCatalogQuery` (verb `Query`, payload names the
-catalog filter), `EngineRetirement` (verb `Retire`, payload names the
-engine), `EngineStatusQuery` (verb `Query`, payload names the status
-shape), `ComponentStatusQuery` (verb `Query`, payload names the
-component-status shape), `ComponentStartup` / `ComponentShutdown`
-(verbs `Start` / `Stop`, payloads name components). Lift the repeated
-`*Query` suffix to a single `Query` operation root whose payload is a
-closed enum naming the query target (engine catalog, engine status,
-component status). Lift the repeated `Engine*` and `Component*`
-prefixes into the payload structure rather than top-level variant
-names.
+Supervision relation operation roots: `Announce` / `Query` / `Stop`.
+`ComponentHello` became `Announce(Presence)`. Readiness and health
+queries unified into `Query` with a payload enum
+`supervision::Query::{ReadinessStatus, HealthStatus}`.
+`GracefulStopRequest` became the contract-local `Stop(ComponentName)`
+operation — it stays here until `owner-signal-persona` is created.
 
-Supervision relation: drop the prefixes and pick contract-local
-verbs that match what each op actually does (settled
-2026-05-19T20:30Z).
+Type renames (drop redundant Engine* / Component* / Supervisor*
+prefixes where the crate domain implies them):
 
-- `ComponentHello` — currently tagged `Match` which is wrong; this
-  op asserts the component's presence to the supervisor, not a read.
-  Use `Announce` (verb-form), payload names what's being announced
-  (presence, readiness snapshot, health snapshot).
-- `ComponentReadinessQuery` and `ComponentHealthQuery` — both reads
-  from the supervisor side. Unify under one `Query` operation root
-  with payload distinguishing readiness vs health: `(Query
-  (ReadinessStatus ...))` and `(Query (HealthStatus ...))`.
-- `GracefulStopRequest` — supervisor → component direction; this is
-  owner-shaped and likely belongs in `owner-signal-persona`
-  (currently doesn't exist — the supervision relation may be the
-  right reason to create that repo). Move out of `signal-persona`
-  when the owner contract is created.
+- `EngineLaunchProposal` → `EngineLaunch`
+- `EngineLaunchAcceptance` → `LaunchAcceptance`
+- `EngineLaunchRejection` → `LaunchRejection`
+- `EngineLaunchRejectionReason` → `LaunchRejectionReason`
+- `EngineRetirement` removed (Retire takes `EngineId` directly)
+- `EngineRetirementAcceptance` removed (Retired carries `EngineId`)
+- `EngineRetirementRejection` → `RetirementRejection`
+- `EngineRetirementRejectionReason` → `RetirementRejectionReason`
+- `EngineCatalogQuery` / `EngineStatusQuery` / `ComponentStatusQuery`
+  removed (replaced by `Query` enum variants)
+- `ComponentStatusMissing` removed (ComponentMissing reply variant
+  carries `ComponentName`)
+- `SupervisorActionAcceptance` → `ActionAcceptance`
+- `SupervisorActionRejection` → `ActionRejection`
+- `SupervisorActionRejectionReason` → `ActionRejectionReason`
+- `ComponentHello` → `Presence`
+- `ComponentReadinessQuery` / `ComponentHealthQuery` removed
+- `GracefulStopRequest` removed (Stop takes `ComponentName` directly)
 
-The skeleton-honesty contract (what makes a process a Persona
-component) doesn't change shape; only the names and the
-public/owner split. The four operations remain functionally intact;
-the supervisor still receives `Announce`, can `Query` readiness and
-health, and can `Stop` (when the owner contract lands). The "what's
-required of a Persona component" discipline survives the rename.
+Reply variant renames follow verb-form past-participle on the
+outcome variants (`Launched`, `Retired`, `Identified`, `Ready`,
+`HealthReport`, `StopAcknowledged`) and direct data-shape nouns on
+the value variants (`Catalog`, `EngineStatus`, `ComponentStatus`).
 
-References: `primary/reports/designer/238-signal-architecture-redirection-contract-local-verbs.md`,
-`primary/reports/designer/239-signal-architecture-migration-plan.md`.
-
-**Note to remover:** when the refactor lands, remove this section and
-add a `## Migration history — contract-local verbs (2026-05-XX)`
-paragraph noting the shape change.
+Auto-generated by the new `signal_channel!` macro: `EngineOperation`
+(the request enum, derived from the channel name), `EngineOperationKind`
+(kind() projection), `SupervisionOperation`, `SupervisionOperationKind`.
+The hand-written `signal_verb()` and `operation_kind()` impls are
+retired; the macro generates `kind()` directly.
 
 ## Relation
 
@@ -75,7 +72,7 @@ flowchart LR
     engine["accepted engine context"]
     components["supervised local components"]
 
-    client -->|"Frame<EngineRequest, EngineReply>"| contract
+    client -->|"Frame<EngineOperation, EngineReply>"| contract
     core -->|"Signal frame + Signal verbs"| contract
     contract -->|"typed manager payloads"| daemon
     daemon -->|"engine-scoped socket/context"| engine
@@ -91,9 +88,9 @@ authorization proof, connection class, sender, or timestamp.
 The implemented channel is intentionally narrow. This crate
 carries **two relations, each with its own closed root family
 and its own `signal_channel!` invocation**: the manager↔CLI
-engine-catalog relation (`EngineRequest` / `EngineReply`)
+engine-catalog relation (`EngineOperation` / `EngineReply`)
 and the manager↔supervised-component supervision relation
-(`SupervisionRequest` / `SupervisionReply`). Per
+(`SupervisionOperation` / `SupervisionReply`). Per
 `~/primary/skills/contract-repo.md` §"Contracts name a
 component's wire surface" — *"a multi-relation contract
 crate (one component, multiple relations) has one root
@@ -104,25 +101,25 @@ versa.
 
 **Engine catalog / CLI surface:**
 
-| Request | Signal verb | Reply |
+| Operation | Payload | Reply |
 |---|---|---|
-| `EngineLaunchProposal` | `Assert` | `EngineLaunchAccepted` or `EngineLaunchRejected` |
-| `EngineCatalogQuery` | `Match` | `EngineCatalog` |
-| `EngineRetirement` | `Retract` | `EngineRetirementAccepted` or `EngineRetirementRejected` |
-| `EngineStatusQuery` | `Match` | `EngineStatus` |
-| `ComponentStatusQuery` | `Match` | `ComponentStatus` or `ComponentStatusMissing` |
-| `ComponentStartup` | `Mutate` | `SupervisorActionAccepted` or `SupervisorActionRejected` |
-| `ComponentShutdown` | `Mutate` | `SupervisorActionAccepted` or `SupervisorActionRejected` |
+| `Launch` | `EngineLaunch` | `Launched(LaunchAcceptance)` or `LaunchRejected(LaunchRejection)` |
+| `Query` | `Query::Catalog(EngineCatalogScope)` | `Catalog(EngineCatalog)` |
+| `Query` | `Query::EngineStatus(EngineStatusScope)` | `EngineStatus(EngineStatus)` |
+| `Query` | `Query::ComponentStatus(ComponentName)` | `ComponentStatus(ComponentStatus)` or `ComponentMissing(ComponentName)` |
+| `Retire` | `signal_persona_auth::EngineId` | `Retired(EngineId)` or `RetireRejected(RetirementRejection)` |
+| `Start` | `ComponentStartup` | `ActionAccepted(ActionAcceptance)` or `ActionRejected(ActionRejection)` |
+| `Stop` | `ComponentShutdown` | `ActionAccepted(ActionAcceptance)` or `ActionRejected(ActionRejection)` |
 
 **Supervision relation** (manager-to-supervised-component):
 
-| Request | Signal verb | Reply |
+| Operation | Payload | Reply |
 |---|---|---|
-| `ComponentHello` | `Match` | `ComponentIdentity` (name, kind, supervision protocol version, last startup error) |
-| `ComponentReadinessQuery` | `Match` | `ComponentReady { component_started_at }` or `ComponentNotReady { reason }` |
-| `ComponentHealthQuery` | `Match` | `ComponentHealthReport { health }` |
-| `GracefulStopRequest` | `Mutate` | `GracefulStopAcknowledgement { drain_completed_at }` |
-| *any* (unbuilt variant) | (any verb) | `SupervisionUnimplemented(SupervisionUnimplementedReason)` |
+| `Announce` | `Presence` | `Identified(ComponentIdentity)` |
+| `Query` | `supervision::Query::ReadinessStatus(ComponentName)` | `Ready(ComponentReady)` or `NotReady(ComponentNotReady)` |
+| `Query` | `supervision::Query::HealthStatus(ComponentName)` | `HealthReport(ComponentHealthReport)` |
+| `Stop` | `ComponentName` | `StopAcknowledged(GracefulStopAcknowledgement)` |
+| *any* (unbuilt variant) | (any payload) | `Unimplemented(SupervisionUnimplemented)` |
 
 The supervision relation **does not** become a generic
 command bus - it carries lifecycle facts only; domain
@@ -130,27 +127,29 @@ operations stay on the relevant `signal-persona-*` domain
 contracts.
 
 **Skeleton honesty**: every supervised daemon decodes every variant
-of `SupervisionRequest`. For variants whose behavior is built,
+of `SupervisionOperation`. For variants whose behavior is built,
 it replies with the success/failure reply. For variants
 whose behavior is not yet built, it replies with
-`SupervisionReply::SupervisionUnimplemented(NotInPrototypeScope)`
-— a typed answer, not a panic. The same convention applies
-across every `signal-persona-*` contract.
+`SupervisionReply::Unimplemented(SupervisionUnimplemented {
+reason: NotInPrototypeScope })` — a typed answer, not a panic. The
+same convention applies across every `signal-persona-*` contract.
 
 **Supervision `Unimplemented` is constrained**:
 `SupervisionUnimplemented` is **only** for future
-supervision-relation variants beyond the current four-op surface.
-The four prototype variants — `ComponentHello`,
-`ComponentReadinessQuery`, `ComponentHealthQuery`,
-`GracefulStopRequest` — are **what makes a process a Persona
-component**. A daemon that replies `SupervisionUnimplemented` to
-any of those four fails the prototype readiness witness.
+supervision-relation variants beyond the current three-op surface.
+The three prototype variants — `Announce`, `Query`, `Stop` — are
+**what makes a process a Persona component**. A daemon that replies
+`Unimplemented` to any of those three fails the prototype readiness
+witness.
 
-`signal-core` owns the frame envelope and the closed six-root
-`SignalVerb` spine (`Assert` / `Mutate` / `Retract` / `Match` /
-`Subscribe` / `Validate`). Atomicity is structural — multi-op
-`Request<Payload>` commits as one unit. This crate owns the
-manager payloads under those roots.
+`signal-frame` owns the frame envelope, exchange identifiers,
+handshake, and the `signal_channel!` macro. The six Sema verbs
+(`Assert` / `Mutate` / `Retract` / `Match` / `Subscribe` /
+`Validate`) live in `signal-sema` as typed-table execution
+vocabulary — they do not appear at this contract's public surface.
+Atomicity is structural — multi-payload `Request<Payload>` commits
+as one unit. This crate owns the manager payloads under contract-
+local operation roots.
 
 ## Typed Records
 
@@ -190,25 +189,24 @@ ComponentStatus
 The rest of the current records are similarly closed and small:
 
 ```text
-EngineLaunchProposal
+EngineLaunch
   | label: EngineLabel
 
-EngineCatalogQuery
-  | scope: EngineCatalogScope
+Query
+  | Catalog(EngineCatalogScope)
+  | EngineStatus(EngineStatusScope)
+  | ComponentStatus(ComponentName)
 
 EngineCatalogScope
   | AllEngines
 
-EngineRetirement
-  | engine: EngineId
-
-EngineLaunchAcceptance
+LaunchAcceptance
   | engine: EngineId
   | label: EngineLabel
 
-EngineLaunchRejection
+LaunchRejection
   | label:  EngineLabel
-  | reason: EngineLaunchRejectionReason
+  | reason: LaunchRejectionReason
 
 EngineLaunchRejectionReason
   | EngineLabelAlreadyExists
@@ -325,7 +323,7 @@ SocketMode
 
 Each Unix socket has one frame vocabulary. Domain sockets speak the
 component's `signal-persona-*` operational contract; supervision
-sockets speak `signal-persona::SupervisionRequest` /
+sockets speak `signal-persona::SupervisionOperation` /
 `SupervisionReply`. The manager does not multiplex two rkyv frame
 types on one socket.
 
@@ -384,8 +382,8 @@ stale prose.
 
 This crate owns:
 
-- `EngineRequest` and `EngineReply`, declared with `signal_channel!`.
-- `SupervisionRequest` and `SupervisionReply`, declared with a separate
+- `EngineOperation` and `EngineReply`, declared with `signal_channel!`.
+- `SupervisionOperation` and `SupervisionReply`, declared with a separate
   `signal_channel!`.
 - `Frame` / `FrameBody` aliases over `signal-core`.
 - `SupervisionFrame` / `SupervisionFrameBody` aliases over `signal-core`.
@@ -431,7 +429,7 @@ This crate does not own:
 
 The `signal_channel!` macro emits a request variant's NOTA head as
 the **payload's record head**, not the Rust variant name. For
-example, `EngineRequest::EngineLaunchProposal(EngineLaunchProposal { .. })`
+example, `EngineOperation::Launch(EngineLaunch { .. })`
 encodes as `(EngineLaunchProposal (...))` (the payload head happens
 to match the variant name here); a future variant whose payload type
 differs from the variant name encodes under the **payload** head.

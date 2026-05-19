@@ -1,18 +1,28 @@
 //! Management contract for talking to the `persona` engine manager over Signal frames.
 //!
-//! This crate names the top-level `persona` engine manager surface:
-//! clients talk to the engine catalog relation, and supervised
-//! supervised local components answer the manager's lifecycle relation.
+//! This crate names the top-level `persona` engine manager surface.
+//! Clients talk to the engine-catalog relation; supervised local
+//! components answer the manager's lifecycle relation.
 //! Component-to-component contracts live in relation-specific
 //! `signal-persona-*` crates.
+//!
+//! The contract speaks **contract-local verbs** per
+//! `reports/designer/241-signal-architecture-migration-guide.md`:
+//! - Engine relation: `Launch`, `Query`, `Retire`, `Start`, `Stop`.
+//! - Supervision relation: `Announce`, `Query`, `Stop`.
+//!
+//! The six former universal verbs (Assert / Mutate / Retract / Match
+//! / Subscribe / Validate) are Sema-engine vocabulary now in
+//! `signal-sema`; they do not appear at this contract's public
+//! surface.
 
 use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode, NotaEnum, NotaRecord, NotaTransparent};
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use signal_core::signal_channel;
+use signal_frame::signal_channel;
 
-pub use signal_core::{
-    ExchangeFrameBody as CoreExchangeFrameBody, HandshakeReply, HandshakeRequest, ProtocolVersion,
-    Request as CoreRequest, Revision, SIGNAL_CORE_PROTOCOL_VERSION, SignalVerb, Slot,
+pub use signal_frame::{
+    ExchangeFrameBody as FrameExchangeFrameBody, HandshakeReply, HandshakeRequest, ProtocolVersion,
+    Request as FrameRequest, SIGNAL_FRAME_PROTOCOL_VERSION,
 };
 
 #[derive(
@@ -120,24 +130,9 @@ pub enum EngineStatusScope {
     WholeEngine,
 }
 
-#[derive(
-    Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, Copy, PartialEq, Eq,
-)]
-pub struct EngineStatusQuery {
-    pub scope: EngineStatusScope,
-}
-
-impl EngineStatusQuery {
-    pub const fn whole_engine() -> Self {
-        Self {
-            scope: EngineStatusScope::WholeEngine,
-        }
-    }
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct ComponentStatusQuery {
-    pub component: ComponentName,
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EngineCatalogScope {
+    AllEngines,
 }
 
 #[derive(
@@ -166,33 +161,113 @@ impl EngineLabel {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct EngineLaunchProposal {
+pub struct EngineLaunch {
     pub label: EngineLabel,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EngineCatalogScope {
-    AllEngines,
+/// Query targets on the engine-catalog relation. The contract-local
+/// `Query` operation root carries one of these as its payload.
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+pub enum Query {
+    Catalog(EngineCatalogScope),
+    EngineStatus(EngineStatusScope),
+    ComponentStatus(ComponentName),
 }
 
-#[derive(
-    Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, Copy, PartialEq, Eq,
-)]
-pub struct EngineCatalogQuery {
-    pub scope: EngineCatalogScope,
-}
-
-impl EngineCatalogQuery {
-    pub const fn all_engines() -> Self {
-        Self {
-            scope: EngineCatalogScope::AllEngines,
+impl NotaEncode for Query {
+    fn encode(&self, encoder: &mut Encoder) -> nota_codec::Result<()> {
+        match self {
+            Self::Catalog(scope) => {
+                encoder.start_record("Catalog")?;
+                scope.encode(encoder)?;
+                encoder.end_record()
+            }
+            Self::EngineStatus(scope) => {
+                encoder.start_record("EngineStatus")?;
+                scope.encode(encoder)?;
+                encoder.end_record()
+            }
+            Self::ComponentStatus(component) => {
+                encoder.start_record("ComponentStatus")?;
+                component.encode(encoder)?;
+                encoder.end_record()
+            }
         }
     }
 }
 
+impl NotaDecode for Query {
+    fn decode(decoder: &mut Decoder<'_>) -> nota_codec::Result<Self> {
+        let head = decoder.peek_record_head()?;
+        match head.as_str() {
+            "Catalog" => {
+                decoder.expect_record_head("Catalog")?;
+                let scope = EngineCatalogScope::decode(decoder)?;
+                decoder.expect_record_end()?;
+                Ok(Self::Catalog(scope))
+            }
+            "EngineStatus" => {
+                decoder.expect_record_head("EngineStatus")?;
+                let scope = EngineStatusScope::decode(decoder)?;
+                decoder.expect_record_end()?;
+                Ok(Self::EngineStatus(scope))
+            }
+            "ComponentStatus" => {
+                decoder.expect_record_head("ComponentStatus")?;
+                let component = ComponentName::decode(decoder)?;
+                decoder.expect_record_end()?;
+                Ok(Self::ComponentStatus(component))
+            }
+            other => Err(nota_codec::Error::UnknownKindForVerb {
+                verb: "Query",
+                got: other.to_string(),
+            }),
+        }
+    }
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LaunchRejectionReason {
+    EngineLabelAlreadyExists,
+    EngineLimitReached,
+    LaunchPlanRejected,
+}
+
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct EngineRetirement {
+pub struct LaunchAcceptance {
     pub engine: signal_persona_auth::EngineId,
+    pub label: EngineLabel,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct LaunchRejection {
+    pub label: EngineLabel,
+    pub reason: LaunchRejectionReason,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RetirementRejectionReason {
+    EngineNotFound,
+    EngineStillRunning,
+    EngineHasLiveRoutes,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct RetirementRejection {
+    pub engine: signal_persona_auth::EngineId,
+    pub reason: RetirementRejectionReason,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineCatalogEntry {
+    pub engine: signal_persona_auth::EngineId,
+    pub label: EngineLabel,
+    pub phase: EnginePhase,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct EngineCatalog {
+    pub engines: Vec<EngineCatalogEntry>,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
@@ -203,6 +278,46 @@ pub struct ComponentStartup {
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct ComponentShutdown {
     pub component: ComponentName,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct ActionAcceptance {
+    pub component: ComponentName,
+    pub desired_state: ComponentDesiredState,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, PartialEq, Eq)]
+pub enum ActionRejectionReason {
+    ComponentNotManaged,
+    ComponentAlreadyInDesiredState,
+}
+
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+pub struct ActionRejection {
+    pub component: ComponentName,
+    pub reason: ActionRejectionReason,
+}
+
+signal_channel! {
+    channel Engine {
+        operation Launch(EngineLaunch),
+        operation Query(Query),
+        operation Retire(signal_persona_auth::EngineId),
+        operation Start(ComponentStartup),
+        operation Stop(ComponentShutdown),
+    }
+    reply EngineReply {
+        Launched(LaunchAcceptance),
+        LaunchRejected(LaunchRejection),
+        Catalog(EngineCatalog),
+        EngineStatus(EngineStatus),
+        ComponentStatus(ComponentStatus),
+        ComponentMissing(ComponentName),
+        Retired(signal_persona_auth::EngineId),
+        RetireRejected(RetirementRejection),
+        ActionAccepted(ActionAcceptance),
+        ActionRejected(ActionRejection),
+    }
 }
 
 #[derive(
@@ -307,25 +422,10 @@ pub enum ComponentNotReadyReason {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct ComponentHello {
+pub struct Presence {
     pub expected_component: ComponentName,
     pub expected_kind: ComponentKind,
     pub supervision_protocol_version: SupervisionProtocolVersion,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct ComponentReadinessQuery {
-    pub component: ComponentName,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct ComponentHealthQuery {
-    pub component: ComponentName,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct GracefulStopRequest {
-    pub component: ComponentName,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
@@ -452,182 +552,83 @@ pub struct SpawnEnvelope {
     pub supervision_protocol_version: SupervisionProtocolVersion,
 }
 
-#[derive(
-    Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq, Hash,
-)]
-pub enum EngineOperationKind {
-    EngineLaunchProposal,
-    EngineCatalogQuery,
-    EngineRetirement,
-    EngineStatusQuery,
-    ComponentStatusQuery,
-    ComponentStartup,
-    ComponentShutdown,
-}
+pub mod supervision {
+    use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
+    use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+    use signal_frame::signal_channel;
 
-#[derive(
-    Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq, Hash,
-)]
-pub enum SupervisionOperationKind {
-    ComponentHello,
-    ComponentReadinessQuery,
-    ComponentHealthQuery,
-    GracefulStopRequest,
-}
+    use super::{
+        ComponentHealthReport, ComponentIdentity, ComponentName, ComponentNotReady, ComponentReady,
+        GracefulStopAcknowledgement, Presence, SupervisionUnimplemented,
+    };
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct SupervisorActionAcceptance {
-    pub component: ComponentName,
-    pub desired_state: ComponentDesiredState,
-}
+    /// Query targets on the supervision relation. The contract-local
+    /// `Query` operation root carries one of these as its payload.
+    #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+    pub enum Query {
+        ReadinessStatus(ComponentName),
+        HealthStatus(ComponentName),
+    }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct EngineLaunchAcceptance {
-    pub engine: signal_persona_auth::EngineId,
-    pub label: EngineLabel,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct EngineLaunchRejection {
-    pub label: EngineLabel,
-    pub reason: EngineLaunchRejectionReason,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EngineLaunchRejectionReason {
-    EngineLabelAlreadyExists,
-    EngineLimitReached,
-    LaunchPlanRejected,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct EngineCatalogEntry {
-    pub engine: signal_persona_auth::EngineId,
-    pub label: EngineLabel,
-    pub phase: EnginePhase,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct EngineCatalog {
-    pub engines: Vec<EngineCatalogEntry>,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct EngineRetirementAcceptance {
-    pub engine: signal_persona_auth::EngineId,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct EngineRetirementRejection {
-    pub engine: signal_persona_auth::EngineId,
-    pub reason: EngineRetirementRejectionReason,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EngineRetirementRejectionReason {
-    EngineNotFound,
-    EngineStillRunning,
-    EngineHasLiveRoutes,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct ComponentStatusMissing {
-    pub component: ComponentName,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct SupervisorActionRejection {
-    pub component: ComponentName,
-    pub reason: SupervisorActionRejectionReason,
-}
-
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, PartialEq, Eq)]
-pub enum SupervisorActionRejectionReason {
-    ComponentNotManaged,
-    ComponentAlreadyInDesiredState,
-}
-
-signal_channel! {
-    channel Engine {
-        request EngineRequest {
-            Assert EngineLaunchProposal(EngineLaunchProposal),
-            Match EngineCatalogQuery(EngineCatalogQuery),
-            Retract EngineRetirement(EngineRetirement),
-            Match EngineStatusQuery(EngineStatusQuery),
-            Match ComponentStatusQuery(ComponentStatusQuery),
-            Mutate ComponentStartup(ComponentStartup),
-            Mutate ComponentShutdown(ComponentShutdown),
-        }
-        reply EngineReply {
-            EngineLaunchAccepted(EngineLaunchAcceptance),
-            EngineLaunchRejected(EngineLaunchRejection),
-            EngineCatalog(EngineCatalog),
-            EngineRetirementAccepted(EngineRetirementAcceptance),
-            EngineRetirementRejected(EngineRetirementRejection),
-            EngineStatus(EngineStatus),
-            ComponentStatus(ComponentStatus),
-            ComponentStatusMissing(ComponentStatusMissing),
-            SupervisorActionAccepted(SupervisorActionAcceptance),
-            SupervisorActionRejected(SupervisorActionRejection),
+    impl NotaEncode for Query {
+        fn encode(&self, encoder: &mut Encoder) -> nota_codec::Result<()> {
+            match self {
+                Self::ReadinessStatus(component) => {
+                    encoder.start_record("ReadinessStatus")?;
+                    component.encode(encoder)?;
+                    encoder.end_record()
+                }
+                Self::HealthStatus(component) => {
+                    encoder.start_record("HealthStatus")?;
+                    component.encode(encoder)?;
+                    encoder.end_record()
+                }
+            }
         }
     }
-}
 
-pub mod supervision {
-    use super::{
-        ComponentHealthQuery, ComponentHealthReport, ComponentHello, ComponentIdentity,
-        ComponentNotReady, ComponentReadinessQuery, ComponentReady, GracefulStopAcknowledgement,
-        GracefulStopRequest, SupervisionOperationKind, SupervisionUnimplemented,
-    };
-    use signal_core::signal_channel;
+    impl NotaDecode for Query {
+        fn decode(decoder: &mut Decoder<'_>) -> nota_codec::Result<Self> {
+            let head = decoder.peek_record_head()?;
+            match head.as_str() {
+                "ReadinessStatus" => {
+                    decoder.expect_record_head("ReadinessStatus")?;
+                    let component = ComponentName::decode(decoder)?;
+                    decoder.expect_record_end()?;
+                    Ok(Self::ReadinessStatus(component))
+                }
+                "HealthStatus" => {
+                    decoder.expect_record_head("HealthStatus")?;
+                    let component = ComponentName::decode(decoder)?;
+                    decoder.expect_record_end()?;
+                    Ok(Self::HealthStatus(component))
+                }
+                other => Err(nota_codec::Error::UnknownKindForVerb {
+                    verb: "supervision::Query",
+                    got: other.to_string(),
+                }),
+            }
+        }
+    }
 
     signal_channel! {
         channel Supervision {
-            request SupervisionRequest {
-                Match ComponentHello(ComponentHello),
-                Match ComponentReadinessQuery(ComponentReadinessQuery),
-                Match ComponentHealthQuery(ComponentHealthQuery),
-                Mutate GracefulStopRequest(GracefulStopRequest),
-            }
-            reply SupervisionReply {
-                ComponentIdentity(ComponentIdentity),
-                ComponentReady(ComponentReady),
-                ComponentNotReady(ComponentNotReady),
-                ComponentHealthReport(ComponentHealthReport),
-                GracefulStopAcknowledgement(GracefulStopAcknowledgement),
-                SupervisionUnimplemented(SupervisionUnimplemented),
-            }
+            operation Announce(Presence),
+            operation Query(Query),
+            operation Stop(ComponentName),
         }
-    }
-
-    impl SupervisionRequest {
-        pub fn operation_kind(&self) -> SupervisionOperationKind {
-            match self {
-                Self::ComponentHello(_) => SupervisionOperationKind::ComponentHello,
-                Self::ComponentReadinessQuery(_) => {
-                    SupervisionOperationKind::ComponentReadinessQuery
-                }
-                Self::ComponentHealthQuery(_) => SupervisionOperationKind::ComponentHealthQuery,
-                Self::GracefulStopRequest(_) => SupervisionOperationKind::GracefulStopRequest,
-            }
+        reply SupervisionReply {
+            Identified(ComponentIdentity),
+            Ready(ComponentReady),
+            NotReady(ComponentNotReady),
+            HealthReport(ComponentHealthReport),
+            StopAcknowledged(GracefulStopAcknowledgement),
+            Unimplemented(SupervisionUnimplemented),
         }
     }
 }
 
 pub use supervision::{
-    SupervisionFrame, SupervisionFrameBody, SupervisionReply, SupervisionRequest,
+    SupervisionFrame, SupervisionFrameBody, SupervisionOperation, SupervisionOperationKind,
+    SupervisionReply, SupervisionReplyKind,
 };
-
-impl EngineRequest {
-    pub fn operation_kind(&self) -> EngineOperationKind {
-        match self {
-            Self::EngineLaunchProposal(_) => EngineOperationKind::EngineLaunchProposal,
-            Self::EngineCatalogQuery(_) => EngineOperationKind::EngineCatalogQuery,
-            Self::EngineRetirement(_) => EngineOperationKind::EngineRetirement,
-            Self::EngineStatusQuery(_) => EngineOperationKind::EngineStatusQuery,
-            Self::ComponentStatusQuery(_) => EngineOperationKind::ComponentStatusQuery,
-            Self::ComponentStartup(_) => EngineOperationKind::ComponentStartup,
-            Self::ComponentShutdown(_) => EngineOperationKind::ComponentShutdown,
-        }
-    }
-}

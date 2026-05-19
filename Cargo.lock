@@ -273,12 +273,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "signal-frame"
+version = "0.1.0"
+source = "git+https://github.com/LiGoldragon/signal-frame.git?branch=main#4bdf1e1e706477c213259c8f661ee2787d48377c"
+dependencies = [
+ "nota-codec",
+ "rkyv",
+ "signal-frame-macros",
+ "thiserror",
+]
+
+[[package]]
+name = "signal-frame-macros"
+version = "0.1.0"
+source = "git+https://github.com/LiGoldragon/signal-frame.git?branch=main#4bdf1e1e706477c213259c8f661ee2787d48377c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "signal-persona"
 version = "0.1.0"
 dependencies = [
  "nota-codec",
  "rkyv",
- "signal-core",
+ "signal-frame",
  "signal-persona-auth",
 ]
 

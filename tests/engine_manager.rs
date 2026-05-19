@@ -1,23 +1,20 @@
 use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
-use signal_core::{
+use signal_frame::{
     ExchangeIdentifier, ExchangeLane, LaneSequence, NonEmpty, Reply, RequestPayload, SessionEpoch,
-    SignalVerb, SubReply,
+    SubReply,
 };
 use signal_persona::{
-    ComponentDesiredState, ComponentHealth, ComponentHealthQuery, ComponentHealthReport,
-    ComponentHello, ComponentIdentity, ComponentKind, ComponentName, ComponentNotReady,
-    ComponentNotReadyReason, ComponentReadinessQuery, ComponentReady, ComponentShutdown,
-    ComponentStartup, ComponentStartupError, ComponentStatus, ComponentStatusMissing,
-    ComponentStatusQuery, DependencyKind, EngineCatalog, EngineCatalogEntry, EngineCatalogQuery,
-    EngineFrame, EngineFrameBody, EngineGeneration, EngineLabel, EngineLaunchAcceptance,
-    EngineLaunchProposal, EngineLaunchRejection, EngineLaunchRejectionReason, EngineOperationKind,
-    EnginePhase, EngineReply, EngineRequest, EngineRetirement, EngineRetirementAcceptance,
-    EngineRetirementRejection, EngineRetirementRejectionReason, EngineStatus, EngineStatusQuery,
-    GracefulStopAcknowledgement, GracefulStopRequest, ResourceKind, SupervisionFrame,
-    SupervisionFrameBody, SupervisionOperationKind, SupervisionProtocolVersion, SupervisionReply,
-    SupervisionRequest, SupervisionUnimplemented, SupervisionUnimplementedReason,
-    SupervisorActionAcceptance, SupervisorActionRejection, SupervisorActionRejectionReason,
-    TimestampNanos,
+    ActionAcceptance, ActionRejection, ActionRejectionReason, ComponentDesiredState,
+    ComponentHealth, ComponentHealthReport, ComponentIdentity, ComponentKind, ComponentName,
+    ComponentNotReady, ComponentNotReadyReason, ComponentReady, ComponentShutdown,
+    ComponentStartup, ComponentStartupError, ComponentStatus, DependencyKind, EngineCatalog,
+    EngineCatalogEntry, EngineCatalogScope, EngineFrame, EngineFrameBody, EngineGeneration,
+    EngineLabel, EngineLaunch, EngineOperation, EngineOperationKind, EnginePhase, EngineReply,
+    EngineStatus, EngineStatusScope, GracefulStopAcknowledgement, LaunchAcceptance,
+    LaunchRejection, LaunchRejectionReason, Presence, Query, ResourceKind, RetirementRejection,
+    RetirementRejectionReason, SupervisionFrame, SupervisionFrameBody, SupervisionOperation,
+    SupervisionOperationKind, SupervisionProtocolVersion, SupervisionReply,
+    SupervisionUnimplemented, SupervisionUnimplementedReason, TimestampNanos, supervision,
 };
 
 fn exchange() -> ExchangeIdentifier {
@@ -28,28 +25,23 @@ fn exchange() -> ExchangeIdentifier {
     )
 }
 
-fn completed_reply<ReplyPayload>(verb: SignalVerb, payload: ReplyPayload) -> Reply<ReplyPayload> {
-    Reply::completed(NonEmpty::single(SubReply::Ok { verb, payload }))
+fn completed_reply<ReplyPayload>(payload: ReplyPayload) -> Reply<ReplyPayload> {
+    Reply::completed(NonEmpty::single(SubReply::Ok { payload }))
 }
 
-fn round_trip_engine_request(request: EngineRequest, expected_verb: SignalVerb) -> EngineRequest {
-    assert_eq!(request.signal_verb(), expected_verb);
+fn round_trip_engine_operation(operation: EngineOperation) -> EngineOperation {
     let frame = EngineFrame::new(EngineFrameBody::Request {
         exchange: exchange(),
-        request: request.clone().into_request(),
+        request: operation.clone().into_request(),
     });
-    let bytes = frame.encode_length_prefixed().expect("encode request");
-    let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode request");
+    let bytes = frame.encode_length_prefixed().expect("encode operation");
+    let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode operation");
 
     match decoded.into_body() {
         EngineFrameBody::Request {
             request: decoded_request,
             ..
-        } => {
-            let operation = decoded_request.operations().head();
-            assert_eq!(operation.verb, expected_verb);
-            operation.payload.clone()
-        }
+        } => decoded_request.payloads().head().clone(),
         other => panic!("expected engine request, got {other:?}"),
     }
 }
@@ -57,7 +49,7 @@ fn round_trip_engine_request(request: EngineRequest, expected_verb: SignalVerb) 
 fn round_trip_engine_reply(reply: EngineReply) -> EngineReply {
     let frame = EngineFrame::new(EngineFrameBody::Reply {
         exchange: exchange(),
-        reply: completed_reply(SignalVerb::Match, reply.clone()),
+        reply: completed_reply(reply.clone()),
     });
     let bytes = frame.encode_length_prefixed().expect("encode reply");
     let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode reply");
@@ -74,27 +66,19 @@ fn round_trip_engine_reply(reply: EngineReply) -> EngineReply {
     }
 }
 
-fn round_trip_supervision_request(
-    request: SupervisionRequest,
-    expected_verb: SignalVerb,
-) -> SupervisionRequest {
-    assert_eq!(request.signal_verb(), expected_verb);
+fn round_trip_supervision_operation(operation: SupervisionOperation) -> SupervisionOperation {
     let frame = SupervisionFrame::new(SupervisionFrameBody::Request {
         exchange: exchange(),
-        request: request.clone().into_request(),
+        request: operation.clone().into_request(),
     });
-    let bytes = frame.encode_length_prefixed().expect("encode request");
-    let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode request");
+    let bytes = frame.encode_length_prefixed().expect("encode operation");
+    let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode operation");
 
     match decoded.into_body() {
         SupervisionFrameBody::Request {
             request: decoded_request,
             ..
-        } => {
-            let operation = decoded_request.operations().head();
-            assert_eq!(operation.verb, expected_verb);
-            operation.payload.clone()
-        }
+        } => decoded_request.payloads().head().clone(),
         other => panic!("expected supervision request, got {other:?}"),
     }
 }
@@ -102,7 +86,7 @@ fn round_trip_supervision_request(
 fn round_trip_supervision_reply(reply: SupervisionReply) -> SupervisionReply {
     let frame = SupervisionFrame::new(SupervisionFrameBody::Reply {
         exchange: exchange(),
-        reply: completed_reply(SignalVerb::Match, reply.clone()),
+        reply: completed_reply(reply.clone()),
     });
     let bytes = frame.encode_length_prefixed().expect("encode reply");
     let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode reply");
@@ -119,211 +103,124 @@ fn round_trip_supervision_reply(reply: SupervisionReply) -> SupervisionReply {
     }
 }
 
-#[test]
-fn engine_catalog_requests_round_trip_with_declared_signal_verbs() {
-    let launch = EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
-        label: EngineLabel::new("research"),
-    });
-    assert_eq!(
-        round_trip_engine_request(launch.clone(), SignalVerb::Assert),
-        launch
-    );
+fn engine_id(label: &str) -> signal_persona_auth::EngineId {
+    signal_persona_auth::EngineId::new(label)
+}
 
-    let catalog = EngineRequest::EngineCatalogQuery(EngineCatalogQuery::all_engines());
-    assert_eq!(
-        round_trip_engine_request(catalog.clone(), SignalVerb::Match),
-        catalog
-    );
-
-    let retirement = EngineRequest::EngineRetirement(EngineRetirement {
-        engine: signal_persona_auth::EngineId::new("research"),
-    });
-    assert_eq!(
-        round_trip_engine_request(retirement.clone(), SignalVerb::Retract),
-        retirement
-    );
+fn router_name() -> ComponentName {
+    ComponentName::new("persona-router")
 }
 
 #[test]
-fn engine_catalog_replies_round_trip_through_length_prefixed_frames() {
-    let accepted = EngineReply::EngineLaunchAccepted(EngineLaunchAcceptance {
-        engine: signal_persona_auth::EngineId::new("research"),
+fn engine_operations_round_trip_through_length_prefixed_frames() {
+    let launch = EngineOperation::Launch(EngineLaunch {
         label: EngineLabel::new("research"),
     });
-    assert_eq!(round_trip_engine_reply(accepted.clone()), accepted);
+    assert_eq!(round_trip_engine_operation(launch.clone()), launch);
 
-    let rejected = EngineReply::EngineLaunchRejected(EngineLaunchRejection {
+    let catalog = EngineOperation::Query(Query::Catalog(EngineCatalogScope::AllEngines));
+    assert_eq!(round_trip_engine_operation(catalog.clone()), catalog);
+
+    let retire = EngineOperation::Retire(engine_id("research"));
+    assert_eq!(round_trip_engine_operation(retire.clone()), retire);
+}
+
+#[test]
+fn engine_replies_round_trip_through_length_prefixed_frames() {
+    let launched = EngineReply::Launched(LaunchAcceptance {
+        engine: engine_id("research"),
         label: EngineLabel::new("research"),
-        reason: EngineLaunchRejectionReason::EngineLabelAlreadyExists,
+    });
+    assert_eq!(round_trip_engine_reply(launched.clone()), launched);
+
+    let rejected = EngineReply::LaunchRejected(LaunchRejection {
+        label: EngineLabel::new("research"),
+        reason: LaunchRejectionReason::EngineLabelAlreadyExists,
     });
     assert_eq!(round_trip_engine_reply(rejected.clone()), rejected);
 
-    let catalog = EngineReply::EngineCatalog(EngineCatalog {
+    let catalog = EngineReply::Catalog(EngineCatalog {
         engines: vec![EngineCatalogEntry {
-            engine: signal_persona_auth::EngineId::new("default"),
+            engine: engine_id("default"),
             label: EngineLabel::new("default"),
             phase: EnginePhase::Running,
         }],
     });
     assert_eq!(round_trip_engine_reply(catalog.clone()), catalog);
 
-    let retired = EngineReply::EngineRetirementAccepted(EngineRetirementAcceptance {
-        engine: signal_persona_auth::EngineId::new("research"),
-    });
+    let retired = EngineReply::Retired(engine_id("research"));
     assert_eq!(round_trip_engine_reply(retired.clone()), retired);
 
-    let blocked = EngineReply::EngineRetirementRejected(EngineRetirementRejection {
-        engine: signal_persona_auth::EngineId::new("default"),
-        reason: EngineRetirementRejectionReason::EngineStillRunning,
+    let blocked = EngineReply::RetireRejected(RetirementRejection {
+        engine: engine_id("default"),
+        reason: RetirementRejectionReason::EngineStillRunning,
     });
     assert_eq!(round_trip_engine_reply(blocked.clone()), blocked);
 }
 
 #[test]
-fn engine_catalog_payloads_round_trip_through_nota_text() {
-    let request = EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
+fn engine_operation_text_round_trips_match_canonical() {
+    let request = EngineOperation::Launch(EngineLaunch {
         label: EngineLabel::new("research"),
     });
-    let mut request_encoder = Encoder::new();
-    request
-        .encode(&mut request_encoder)
-        .expect("encode engine catalog request");
-    let request_text = request_encoder.into_string();
-    let mut request_decoder = Decoder::new(&request_text);
-    let recovered_request =
-        EngineRequest::decode(&mut request_decoder).expect("decode engine catalog request");
-    assert_eq!(recovered_request, request);
-    assert_eq!(request_text, "(EngineLaunchProposal (research))");
+    let mut encoder = Encoder::new();
+    request.encode(&mut encoder).expect("encode");
+    let text = encoder.into_string();
+    let mut decoder = Decoder::new(&text);
+    let recovered = EngineOperation::decode(&mut decoder).expect("decode");
+    assert_eq!(recovered, request);
+    assert_eq!(text, "(Launch (research))");
 
-    let reply = EngineReply::EngineCatalog(EngineCatalog {
+    let reply = EngineReply::Catalog(EngineCatalog {
         engines: vec![EngineCatalogEntry {
-            engine: signal_persona_auth::EngineId::new("default"),
+            engine: engine_id("default"),
             label: EngineLabel::new("default"),
             phase: EnginePhase::Running,
         }],
     });
-    let mut reply_encoder = Encoder::new();
-    reply
-        .encode(&mut reply_encoder)
-        .expect("encode engine catalog reply");
-    let reply_text = reply_encoder.into_string();
-    let mut reply_decoder = Decoder::new(&reply_text);
-    let recovered_reply =
-        EngineReply::decode(&mut reply_decoder).expect("decode engine catalog reply");
-    assert_eq!(recovered_reply, reply);
-    assert_eq!(
-        reply_text,
-        "(EngineCatalog ([(default default Running)]))"
-    );
+    let mut encoder = Encoder::new();
+    reply.encode(&mut encoder).expect("encode");
+    let text = encoder.into_string();
+    let mut decoder = Decoder::new(&text);
+    let recovered = EngineReply::decode(&mut decoder).expect("decode");
+    assert_eq!(recovered, reply);
+    assert_eq!(text, "(Catalog ([(default default Running)]))");
 }
 
 #[test]
 fn engine_status_query_round_trips_through_length_prefixed_frame() {
-    let request = EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine());
-    let frame = EngineFrame::new(EngineFrameBody::Request {
-        exchange: exchange(),
-        request: request.clone().into_request(),
-    });
-
-    let bytes = frame.encode_length_prefixed().expect("encode");
-    let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode");
-
-    match decoded.into_body() {
-        EngineFrameBody::Request {
-            request: decoded_request,
-            ..
-        } => {
-            let operation = decoded_request.operations().head();
-            assert_eq!(operation.verb, SignalVerb::Match);
-            assert_eq!(&operation.payload, &request);
-        }
-        other => panic!("expected Match request, got {other:?}"),
-    }
+    let request = EngineOperation::Query(Query::EngineStatus(EngineStatusScope::WholeEngine));
+    let recovered = round_trip_engine_operation(request.clone());
+    assert_eq!(recovered, request);
 }
 
 #[test]
 fn component_status_query_round_trips_through_length_prefixed_frame() {
-    let request = EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
-        component: ComponentName::new("persona-router"),
-    });
-    let frame = EngineFrame::new(EngineFrameBody::Request {
-        exchange: exchange(),
-        request: request.clone().into_request(),
-    });
+    let request = EngineOperation::Query(Query::ComponentStatus(router_name()));
+    let recovered = round_trip_engine_operation(request.clone());
+    assert_eq!(recovered, request);
+}
 
-    let bytes = frame.encode_length_prefixed().expect("encode");
-    let decoded = EngineFrame::decode_length_prefixed(&bytes).expect("decode");
-
-    match decoded.into_body() {
-        EngineFrameBody::Request {
-            request: decoded_request,
-            ..
-        } => {
-            let operation = decoded_request.operations().head();
-            assert_eq!(&operation.payload, &request);
-        }
-        other => panic!("expected request, got {other:?}"),
+#[test]
+fn engine_status_reply_round_trips_for_every_component_kind() {
+    for (generation, kind, name) in [
+        (7u64, ComponentKind::Mind, "persona-mind"),
+        (8, ComponentKind::Message, "persona-message"),
+        (10, ComponentKind::Introspect, "persona-introspect"),
+        (11, ComponentKind::Orchestrate, "persona-orchestrate"),
+    ] {
+        let reply = EngineReply::EngineStatus(EngineStatus {
+            generation: EngineGeneration::new(generation),
+            phase: EnginePhase::Running,
+            components: vec![ComponentStatus {
+                name: ComponentName::new(name),
+                kind,
+                desired_state: ComponentDesiredState::Running,
+                health: ComponentHealth::Running,
+            }],
+        });
+        assert_eq!(round_trip_engine_reply(reply.clone()), reply);
     }
-}
-
-#[test]
-fn engine_status_reply_round_trips_with_component_health() {
-    let reply = EngineReply::EngineStatus(EngineStatus {
-        generation: EngineGeneration::new(7),
-        phase: EnginePhase::Running,
-        components: vec![ComponentStatus {
-            name: ComponentName::new("persona-mind"),
-            kind: ComponentKind::Mind,
-            desired_state: ComponentDesiredState::Running,
-            health: ComponentHealth::Running,
-        }],
-    });
-    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
-}
-
-#[test]
-fn engine_status_reply_round_trips_message_kind() {
-    let reply = EngineReply::EngineStatus(EngineStatus {
-        generation: EngineGeneration::new(8),
-        phase: EnginePhase::Running,
-        components: vec![ComponentStatus {
-            name: ComponentName::new("persona-message"),
-            kind: ComponentKind::Message,
-            desired_state: ComponentDesiredState::Running,
-            health: ComponentHealth::Running,
-        }],
-    });
-    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
-}
-
-#[test]
-fn engine_status_reply_round_trips_orchestrate_kind() {
-    let reply = EngineReply::EngineStatus(EngineStatus {
-        generation: EngineGeneration::new(11),
-        phase: EnginePhase::Running,
-        components: vec![ComponentStatus {
-            name: ComponentName::new("persona-orchestrate"),
-            kind: ComponentKind::Orchestrate,
-            desired_state: ComponentDesiredState::Running,
-            health: ComponentHealth::Running,
-        }],
-    });
-    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
-}
-
-#[test]
-fn engine_status_reply_round_trips_introspect_kind() {
-    let reply = EngineReply::EngineStatus(EngineStatus {
-        generation: EngineGeneration::new(10),
-        phase: EnginePhase::Running,
-        components: vec![ComponentStatus {
-            name: ComponentName::new("persona-introspect"),
-            kind: ComponentKind::Introspect,
-            desired_state: ComponentDesiredState::Running,
-            health: ComponentHealth::Running,
-        }],
-    });
-    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 }
 
 #[test]
@@ -353,165 +250,88 @@ fn engine_status_contract_payload_round_trips_through_nota() {
 }
 
 #[test]
-fn engine_channel_request_reply_round_trip_through_nota() {
-    let request = EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
-        component: ComponentName::new("persona-router"),
-    });
-    let mut request_encoder = Encoder::new();
-    request
-        .encode(&mut request_encoder)
-        .expect("encode engine request");
-    let request_text = request_encoder.into_string();
-    let mut request_decoder = Decoder::new(&request_text);
-    let recovered_request =
-        EngineRequest::decode(&mut request_decoder).expect("decode engine request");
-    assert_eq!(recovered_request, request);
-    assert_eq!(request_text, "(ComponentStatusQuery (persona-router))");
+fn component_missing_reply_round_trips_with_component_name() {
+    let reply = EngineReply::ComponentMissing(ComponentName::new("persona-terminal"));
+    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 
-    let reply = EngineReply::ComponentStatusMissing(ComponentStatusMissing {
-        component: ComponentName::new("persona-terminal"),
-    });
-    let mut reply_encoder = Encoder::new();
-    reply
-        .encode(&mut reply_encoder)
-        .expect("encode engine reply");
-    let reply_text = reply_encoder.into_string();
-    let mut reply_decoder = Decoder::new(&reply_text);
-    let recovered_reply = EngineReply::decode(&mut reply_decoder).expect("decode engine reply");
-    assert_eq!(recovered_reply, reply);
-    assert_eq!(reply_text, "(ComponentStatusMissing (persona-terminal))");
+    let mut encoder = Encoder::new();
+    reply.encode(&mut encoder).expect("encode");
+    let text = encoder.into_string();
+    assert_eq!(text, "(ComponentMissing persona-terminal)");
 }
 
 #[test]
-fn engine_request_exposes_contract_owned_operation_kind() {
+fn engine_operation_kind_is_auto_generated_by_macro() {
     let cases = [
         (
-            EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
+            EngineOperation::Launch(EngineLaunch {
                 label: EngineLabel::new("research"),
             }),
-            EngineOperationKind::EngineLaunchProposal,
+            EngineOperationKind::Launch,
         ),
         (
-            EngineRequest::EngineCatalogQuery(EngineCatalogQuery::all_engines()),
-            EngineOperationKind::EngineCatalogQuery,
+            EngineOperation::Query(Query::Catalog(EngineCatalogScope::AllEngines)),
+            EngineOperationKind::Query,
         ),
         (
-            EngineRequest::EngineRetirement(EngineRetirement {
-                engine: signal_persona_auth::EngineId::new("research"),
+            EngineOperation::Retire(engine_id("research")),
+            EngineOperationKind::Retire,
+        ),
+        (
+            EngineOperation::Start(ComponentStartup {
+                component: router_name(),
             }),
-            EngineOperationKind::EngineRetirement,
+            EngineOperationKind::Start,
         ),
         (
-            EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine()),
-            EngineOperationKind::EngineStatusQuery,
-        ),
-        (
-            EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
-                component: ComponentName::new("persona-router"),
+            EngineOperation::Stop(ComponentShutdown {
+                component: router_name(),
             }),
-            EngineOperationKind::ComponentStatusQuery,
-        ),
-        (
-            EngineRequest::ComponentStartup(ComponentStartup {
-                component: ComponentName::new("persona-router"),
-            }),
-            EngineOperationKind::ComponentStartup,
-        ),
-        (
-            EngineRequest::ComponentShutdown(ComponentShutdown {
-                component: ComponentName::new("persona-router"),
-            }),
-            EngineOperationKind::ComponentShutdown,
+            EngineOperationKind::Stop,
         ),
     ];
 
-    for (request, operation) in cases {
-        assert_eq!(request.operation_kind(), operation);
+    for (operation, expected_kind) in cases {
+        assert_eq!(operation.kind(), expected_kind);
     }
 }
 
 #[test]
-fn supervision_request_exposes_contract_owned_operation_kind() {
+fn supervision_operation_kind_is_auto_generated_by_macro() {
     let cases = [
         (
-            SupervisionRequest::ComponentHello(ComponentHello {
-                expected_component: ComponentName::new("persona-router"),
+            SupervisionOperation::Announce(Presence {
+                expected_component: router_name(),
                 expected_kind: ComponentKind::Router,
                 supervision_protocol_version: SupervisionProtocolVersion::new(1),
             }),
-            SupervisionOperationKind::ComponentHello,
+            SupervisionOperationKind::Announce,
         ),
         (
-            SupervisionRequest::ComponentReadinessQuery(ComponentReadinessQuery {
-                component: ComponentName::new("persona-router"),
-            }),
-            SupervisionOperationKind::ComponentReadinessQuery,
+            SupervisionOperation::Query(supervision::Query::ReadinessStatus(router_name())),
+            SupervisionOperationKind::Query,
         ),
         (
-            SupervisionRequest::ComponentHealthQuery(ComponentHealthQuery {
-                component: ComponentName::new("persona-router"),
-            }),
-            SupervisionOperationKind::ComponentHealthQuery,
-        ),
-        (
-            SupervisionRequest::GracefulStopRequest(GracefulStopRequest {
-                component: ComponentName::new("persona-router"),
-            }),
-            SupervisionOperationKind::GracefulStopRequest,
+            SupervisionOperation::Stop(router_name()),
+            SupervisionOperationKind::Stop,
         ),
     ];
 
-    for (request, operation) in cases {
-        assert_eq!(request.operation_kind(), operation);
+    for (operation, expected_kind) in cases {
+        assert_eq!(operation.kind(), expected_kind);
     }
-}
-
-#[test]
-fn engine_operation_kind_round_trips_through_nota_text() {
-    let mut encoder = Encoder::new();
-    EngineOperationKind::ComponentStartup
-        .encode(&mut encoder)
-        .expect("encode operation kind");
-    let text = encoder.into_string();
-    let mut decoder = Decoder::new(&text);
-    let recovered = EngineOperationKind::decode(&mut decoder).expect("decode operation kind");
-
-    assert_eq!(recovered, EngineOperationKind::ComponentStartup);
-    assert_eq!(text, "ComponentStartup");
-}
-
-#[test]
-fn missing_component_status_reply_round_trips_with_component_name() {
-    let reply = EngineReply::ComponentStatusMissing(ComponentStatusMissing {
-        component: ComponentName::new("persona-terminal"),
-    });
-    assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 }
 
 #[test]
 fn supervisor_action_round_trips_with_typed_rejection() {
-    let startup = EngineRequest::ComponentStartup(ComponentStartup {
+    let startup = EngineOperation::Start(ComponentStartup {
         component: ComponentName::new("persona-system"),
     });
-    let startup_frame = EngineFrame::new(EngineFrameBody::Request {
-        exchange: exchange(),
-        request: startup.clone().into_request(),
-    });
-    let startup_bytes = startup_frame.encode_length_prefixed().expect("encode");
-    let startup_decoded = EngineFrame::decode_length_prefixed(&startup_bytes).expect("decode");
+    assert_eq!(round_trip_engine_operation(startup.clone()), startup);
 
-    match startup_decoded.into_body() {
-        EngineFrameBody::Request { request, .. } => {
-            let operation = request.operations().head();
-            assert_eq!(operation.verb, SignalVerb::Mutate);
-            assert_eq!(&operation.payload, &startup);
-        }
-        other => panic!("expected startup request, got {other:?}"),
-    }
-
-    let reply = EngineReply::SupervisorActionRejected(SupervisorActionRejection {
+    let reply = EngineReply::ActionRejected(ActionRejection {
         component: ComponentName::new("persona-system"),
-        reason: SupervisorActionRejectionReason::ComponentAlreadyInDesiredState,
+        reason: ActionRejectionReason::ComponentAlreadyInDesiredState,
     });
     assert_eq!(round_trip_engine_reply(reply.clone()), reply);
 }
@@ -521,85 +341,77 @@ fn explicit_variants_lift_manager_payloads_into_channel_enums() {
     let shutdown = ComponentShutdown {
         component: ComponentName::new("persona-terminal"),
     };
-    let request = EngineRequest::ComponentShutdown(shutdown.clone());
-    assert_eq!(request, EngineRequest::ComponentShutdown(shutdown));
+    let operation = EngineOperation::Stop(shutdown.clone());
+    assert_eq!(operation, EngineOperation::Stop(shutdown));
 
-    let acceptance = SupervisorActionAcceptance {
+    let acceptance = ActionAcceptance {
         component: ComponentName::new("persona-terminal"),
         desired_state: ComponentDesiredState::Stopped,
     };
-    let reply = EngineReply::SupervisorActionAccepted(acceptance.clone());
-    assert_eq!(reply, EngineReply::SupervisorActionAccepted(acceptance));
+    let reply = EngineReply::ActionAccepted(acceptance.clone());
+    assert_eq!(reply, EngineReply::ActionAccepted(acceptance));
 
-    let hello = ComponentHello {
-        expected_component: ComponentName::new("persona-router"),
+    let presence = Presence {
+        expected_component: router_name(),
         expected_kind: ComponentKind::Router,
         supervision_protocol_version: SupervisionProtocolVersion::new(1),
     };
-    let request = SupervisionRequest::ComponentHello(hello.clone());
-    assert_eq!(request, SupervisionRequest::ComponentHello(hello));
+    let operation = SupervisionOperation::Announce(presence.clone());
+    assert_eq!(operation, SupervisionOperation::Announce(presence));
 
     let ready = ComponentReady {
         component_started_at: Some(TimestampNanos::new(42)),
     };
-    let reply = SupervisionReply::ComponentReady(ready.clone());
-    assert_eq!(reply, SupervisionReply::ComponentReady(ready));
+    let reply = SupervisionReply::Ready(ready.clone());
+    assert_eq!(reply, SupervisionReply::Ready(ready));
 }
 
 #[test]
-fn supervision_requests_round_trip_through_length_prefixed_frames() {
-    let match_requests = [
-        SupervisionRequest::ComponentHello(ComponentHello {
-            expected_component: ComponentName::new("persona-router"),
-            expected_kind: ComponentKind::Router,
-            supervision_protocol_version: SupervisionProtocolVersion::new(1),
-        }),
-        SupervisionRequest::ComponentReadinessQuery(ComponentReadinessQuery {
-            component: ComponentName::new("persona-router"),
-        }),
-        SupervisionRequest::ComponentHealthQuery(ComponentHealthQuery {
-            component: ComponentName::new("persona-router"),
-        }),
-    ];
+fn supervision_operations_round_trip_through_length_prefixed_frames() {
+    let announce = SupervisionOperation::Announce(Presence {
+        expected_component: router_name(),
+        expected_kind: ComponentKind::Router,
+        supervision_protocol_version: SupervisionProtocolVersion::new(1),
+    });
+    assert_eq!(round_trip_supervision_operation(announce.clone()), announce);
 
-    for request in match_requests {
+    for query in [
+        supervision::Query::ReadinessStatus(router_name()),
+        supervision::Query::HealthStatus(router_name()),
+    ] {
+        let operation = SupervisionOperation::Query(query);
         assert_eq!(
-            round_trip_supervision_request(request.clone(), SignalVerb::Match),
-            request
+            round_trip_supervision_operation(operation.clone()),
+            operation
         );
     }
 
-    let stop = SupervisionRequest::GracefulStopRequest(GracefulStopRequest {
-        component: ComponentName::new("persona-router"),
-    });
-    assert_eq!(
-        round_trip_supervision_request(stop.clone(), SignalVerb::Mutate),
-        stop
-    );
+    let stop = SupervisionOperation::Stop(router_name());
+    assert_eq!(round_trip_supervision_operation(stop.clone()), stop);
 }
 
 #[test]
 fn supervision_replies_round_trip_through_length_prefixed_frames() {
     let replies = [
-        SupervisionReply::ComponentIdentity(ComponentIdentity {
-            name: ComponentName::new("persona-router"),
+        SupervisionReply::Identified(ComponentIdentity {
+            name: router_name(),
             kind: ComponentKind::Router,
             supervision_protocol_version: SupervisionProtocolVersion::new(1),
             last_fatal_startup_error: None,
         }),
-        SupervisionReply::ComponentReady(ComponentReady {
+        SupervisionReply::Ready(ComponentReady {
             component_started_at: Some(TimestampNanos::new(100)),
         }),
-        SupervisionReply::ComponentNotReady(ComponentNotReady {
+        SupervisionReply::NotReady(ComponentNotReady {
             reason: ComponentNotReadyReason::AwaitingDependency,
         }),
-        SupervisionReply::ComponentHealthReport(ComponentHealthReport {
+        SupervisionReply::HealthReport(ComponentHealthReport {
             health: ComponentHealth::Running,
         }),
-        SupervisionReply::GracefulStopAcknowledgement(GracefulStopAcknowledgement {
+        SupervisionReply::StopAcknowledged(GracefulStopAcknowledgement {
             drain_completed_at: Some(TimestampNanos::new(200)),
         }),
-        SupervisionReply::SupervisionUnimplemented(SupervisionUnimplemented {
+        SupervisionReply::Unimplemented(SupervisionUnimplemented {
             reason: SupervisionUnimplementedReason::NotInPrototypeScope,
         }),
     ];
@@ -611,40 +423,34 @@ fn supervision_replies_round_trip_through_length_prefixed_frames() {
 
 #[test]
 fn supervision_payloads_round_trip_through_nota_text() {
-    let request = SupervisionRequest::ComponentHello(ComponentHello {
-        expected_component: ComponentName::new("persona-router"),
+    let operation = SupervisionOperation::Announce(Presence {
+        expected_component: router_name(),
         expected_kind: ComponentKind::Router,
         supervision_protocol_version: SupervisionProtocolVersion::new(1),
     });
-    let mut request_encoder = Encoder::new();
-    request
-        .encode(&mut request_encoder)
-        .expect("encode supervision request");
-    let request_text = request_encoder.into_string();
-    let mut request_decoder = Decoder::new(&request_text);
-    let recovered_request =
-        SupervisionRequest::decode(&mut request_decoder).expect("decode supervision request");
-    assert_eq!(recovered_request, request);
-    assert_eq!(request_text, "(ComponentHello (persona-router Router 1))");
+    let mut encoder = Encoder::new();
+    operation.encode(&mut encoder).expect("encode");
+    let text = encoder.into_string();
+    let mut decoder = Decoder::new(&text);
+    let recovered = SupervisionOperation::decode(&mut decoder).expect("decode");
+    assert_eq!(recovered, operation);
+    assert_eq!(text, "(Announce (persona-router Router 1))");
 
-    let reply = SupervisionReply::ComponentIdentity(ComponentIdentity {
-        name: ComponentName::new("persona-router"),
+    let reply = SupervisionReply::Identified(ComponentIdentity {
+        name: router_name(),
         kind: ComponentKind::Router,
         supervision_protocol_version: SupervisionProtocolVersion::new(1),
         last_fatal_startup_error: Some(ComponentStartupError::StoreOpenFailed),
     });
-    let mut reply_encoder = Encoder::new();
-    reply
-        .encode(&mut reply_encoder)
-        .expect("encode supervision reply");
-    let reply_text = reply_encoder.into_string();
-    let mut reply_decoder = Decoder::new(&reply_text);
-    let recovered_reply =
-        SupervisionReply::decode(&mut reply_decoder).expect("decode supervision reply");
-    assert_eq!(recovered_reply, reply);
+    let mut encoder = Encoder::new();
+    reply.encode(&mut encoder).expect("encode");
+    let text = encoder.into_string();
+    let mut decoder = Decoder::new(&text);
+    let recovered = SupervisionReply::decode(&mut decoder).expect("decode");
+    assert_eq!(recovered, reply);
     assert_eq!(
-        reply_text,
-        "(ComponentIdentity (persona-router Router 1 (Some StoreOpenFailed)))"
+        text,
+        "(Identified (persona-router Router 1 (Some StoreOpenFailed)))"
     );
 }
 
@@ -667,32 +473,25 @@ fn supervision_unimplemented_round_trips_through_nota_text() {
 
     for (reason, expected_text) in cases {
         let mut encoder = Encoder::new();
-        reason
-            .encode(&mut encoder)
-            .expect("encode unimplemented reason");
+        reason.encode(&mut encoder).expect("encode");
         let text = encoder.into_string();
         let mut decoder = Decoder::new(&text);
-        let recovered = SupervisionUnimplementedReason::decode(&mut decoder)
-            .expect("decode unimplemented reason");
-
+        let recovered =
+            SupervisionUnimplementedReason::decode(&mut decoder).expect("decode reason");
         assert_eq!(recovered, reason);
         assert_eq!(text, expected_text);
     }
 
-    let reply = SupervisionReply::SupervisionUnimplemented(SupervisionUnimplemented {
+    let reply = SupervisionReply::Unimplemented(SupervisionUnimplemented {
         reason: SupervisionUnimplementedReason::DependencyMissing(DependencyKind::PeerComponent),
     });
     let mut encoder = Encoder::new();
-    reply.encode(&mut encoder).expect("encode reply");
+    reply.encode(&mut encoder).expect("encode");
     let text = encoder.into_string();
     let mut decoder = Decoder::new(&text);
     let recovered = SupervisionReply::decode(&mut decoder).expect("decode reply");
-
     assert_eq!(recovered, reply);
-    assert_eq!(
-        text,
-        "(SupervisionUnimplemented ((DependencyMissing PeerComponent)))"
-    );
+    assert_eq!(text, "(Unimplemented ((DependencyMissing PeerComponent)))");
 }
 
 #[test]
