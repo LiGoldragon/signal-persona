@@ -32,16 +32,30 @@ component status). Lift the repeated `Engine*` and `Component*`
 prefixes into the payload structure rather than top-level variant
 names.
 
-Supervision relation: drop the prefixes on `ComponentHello`,
-`ComponentReadinessQuery`, `ComponentHealthQuery`, `GracefulStopRequest`.
-Candidate contract-local verbs: `Hello` (announcement), `Query`
-(for readiness, health — payload distinguishes), `Stop` or
-`Drain` (for `GracefulStopRequest`, payload names the drain shape).
-The four operations are tightly coupled to the supervision lifecycle
-discipline (skeleton honesty, prototype readiness witness); the
-designer may want to look at this relation specifically before the
-operator picks it up because the supervision lifecycle is
-load-bearing for "what makes a process a Persona component."
+Supervision relation: drop the prefixes and pick contract-local
+verbs that match what each op actually does (settled
+2026-05-19T20:30Z).
+
+- `ComponentHello` — currently tagged `Match` which is wrong; this
+  op asserts the component's presence to the supervisor, not a read.
+  Use `Announce` (verb-form), payload names what's being announced
+  (presence, readiness snapshot, health snapshot).
+- `ComponentReadinessQuery` and `ComponentHealthQuery` — both reads
+  from the supervisor side. Unify under one `Query` operation root
+  with payload distinguishing readiness vs health: `(Query
+  (ReadinessStatus ...))` and `(Query (HealthStatus ...))`.
+- `GracefulStopRequest` — supervisor → component direction; this is
+  owner-shaped and likely belongs in `owner-signal-persona`
+  (currently doesn't exist — the supervision relation may be the
+  right reason to create that repo). Move out of `signal-persona`
+  when the owner contract is created.
+
+The skeleton-honesty contract (what makes a process a Persona
+component) doesn't change shape; only the names and the
+public/owner split. The four operations remain functionally intact;
+the supervisor still receives `Announce`, can `Query` readiness and
+health, and can `Stop` (when the owner contract lands). The "what's
+required of a Persona component" discipline survives the rename.
 
 References: `primary/reports/designer/238-signal-architecture-redirection-contract-local-verbs.md`,
 `primary/reports/designer/239-signal-architecture-migration-plan.md`.
