@@ -9,6 +9,47 @@ NOTA text derives on the same types. Runtime actors, storage, daemon startup,
 CLI parsing, terminal effects, routing policy, and NOTA surface policy live
 outside this crate.
 
+## MUST IMPLEMENT — signal architecture migration
+
+This contract is migrating to contract-local verbs per
+`primary/reports/designer/238-signal-architecture-redirection-contract-local-verbs.md`
+and `primary/reports/designer/239-signal-architecture-migration-plan.md`.
+
+This crate carries **two relations**, each needs its own
+contract-local verb pass:
+
+Engine-catalog / CLI relation: drop the SignalVerb prefixes on
+`EngineLaunchProposal` (verb `Launch` or `Propose`, payload an engine
+launch noun), `EngineCatalogQuery` (verb `Query`, payload names the
+catalog filter), `EngineRetirement` (verb `Retire`, payload names the
+engine), `EngineStatusQuery` (verb `Query`, payload names the status
+shape), `ComponentStatusQuery` (verb `Query`, payload names the
+component-status shape), `ComponentStartup` / `ComponentShutdown`
+(verbs `Start` / `Stop`, payloads name components). Lift the repeated
+`*Query` suffix to a single `Query` operation root whose payload is a
+closed enum naming the query target (engine catalog, engine status,
+component status). Lift the repeated `Engine*` and `Component*`
+prefixes into the payload structure rather than top-level variant
+names.
+
+Supervision relation: drop the prefixes on `ComponentHello`,
+`ComponentReadinessQuery`, `ComponentHealthQuery`, `GracefulStopRequest`.
+Candidate contract-local verbs: `Hello` (announcement), `Query`
+(for readiness, health — payload distinguishes), `Stop` or
+`Drain` (for `GracefulStopRequest`, payload names the drain shape).
+The four operations are tightly coupled to the supervision lifecycle
+discipline (skeleton honesty, prototype readiness witness); the
+designer may want to look at this relation specifically before the
+operator picks it up because the supervision lifecycle is
+load-bearing for "what makes a process a Persona component."
+
+References: `primary/reports/designer/238-signal-architecture-redirection-contract-local-verbs.md`,
+`primary/reports/designer/239-signal-architecture-migration-plan.md`.
+
+**Note to remover:** when the refactor lands, remove this section and
+add a `## Migration history — contract-local verbs (2026-05-XX)`
+paragraph noting the shape change.
+
 ## Relation
 
 ```mermaid
