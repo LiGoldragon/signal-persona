@@ -193,7 +193,7 @@ fn engine_catalog_payloads_round_trip_through_nota_text() {
     let recovered_request =
         EngineRequest::decode(&mut request_decoder).expect("decode engine catalog request");
     assert_eq!(recovered_request, request);
-    assert_eq!(request_text, "(EngineLaunchProposal research)");
+    assert_eq!(request_text, "(EngineLaunchProposal (research))");
 
     let reply = EngineReply::EngineCatalog(EngineCatalog {
         engines: vec![EngineCatalogEntry {
@@ -213,7 +213,7 @@ fn engine_catalog_payloads_round_trip_through_nota_text() {
     assert_eq!(recovered_reply, reply);
     assert_eq!(
         reply_text,
-        "(EngineCatalog [(EngineCatalogEntry default default Running)])"
+        "(EngineCatalog ([(default default Running)]))"
     );
 }
 
@@ -348,7 +348,7 @@ fn engine_status_contract_payload_round_trips_through_nota() {
     assert_eq!(recovered, status);
     assert_eq!(
         encoded,
-        "(EngineStatus 9 Running [(ComponentStatus persona-message Message Running Running)])"
+        "(9 Running [(persona-message Message Running Running)])"
     );
 }
 
@@ -366,7 +366,7 @@ fn engine_channel_request_reply_round_trip_through_nota() {
     let recovered_request =
         EngineRequest::decode(&mut request_decoder).expect("decode engine request");
     assert_eq!(recovered_request, request);
-    assert_eq!(request_text, "(ComponentStatusQuery persona-router)");
+    assert_eq!(request_text, "(ComponentStatusQuery (persona-router))");
 
     let reply = EngineReply::ComponentStatusMissing(ComponentStatusMissing {
         component: ComponentName::new("persona-terminal"),
@@ -379,7 +379,7 @@ fn engine_channel_request_reply_round_trip_through_nota() {
     let mut reply_decoder = Decoder::new(&reply_text);
     let recovered_reply = EngineReply::decode(&mut reply_decoder).expect("decode engine reply");
     assert_eq!(recovered_reply, reply);
-    assert_eq!(reply_text, "(ComponentStatusMissing persona-terminal)");
+    assert_eq!(reply_text, "(ComponentStatusMissing (persona-terminal))");
 }
 
 #[test]
@@ -625,7 +625,7 @@ fn supervision_payloads_round_trip_through_nota_text() {
     let recovered_request =
         SupervisionRequest::decode(&mut request_decoder).expect("decode supervision request");
     assert_eq!(recovered_request, request);
-    assert_eq!(request_text, "(ComponentHello persona-router Router 1)");
+    assert_eq!(request_text, "(ComponentHello (persona-router Router 1))");
 
     let reply = SupervisionReply::ComponentIdentity(ComponentIdentity {
         name: ComponentName::new("persona-router"),
@@ -644,7 +644,7 @@ fn supervision_payloads_round_trip_through_nota_text() {
     assert_eq!(recovered_reply, reply);
     assert_eq!(
         reply_text,
-        "(ComponentIdentity persona-router Router 1 StoreOpenFailed)"
+        "(ComponentIdentity (persona-router Router 1 (Some StoreOpenFailed)))"
     );
 }
 
@@ -691,7 +691,7 @@ fn supervision_unimplemented_round_trips_through_nota_text() {
     assert_eq!(recovered, reply);
     assert_eq!(
         text,
-        "(SupervisionUnimplemented (DependencyMissing PeerComponent))"
+        "(SupervisionUnimplemented ((DependencyMissing PeerComponent)))"
     );
 }
 

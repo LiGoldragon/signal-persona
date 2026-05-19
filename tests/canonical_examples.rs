@@ -60,39 +60,39 @@ fn canonical_engine_requests_round_trip() {
         EngineRequest::EngineLaunchProposal(EngineLaunchProposal {
             label: engine_label(),
         }),
-        "(EngineLaunchProposal example-engine)",
+        "(EngineLaunchProposal (example-engine))",
     );
     round_trip(
         EngineRequest::EngineCatalogQuery(EngineCatalogQuery::all_engines()),
-        "(EngineCatalogQuery AllEngines)",
+        "(EngineCatalogQuery (AllEngines))",
     );
     round_trip(
         EngineRequest::EngineRetirement(EngineRetirement {
             engine: engine_id(),
         }),
-        "(EngineRetirement prototype)",
+        "(EngineRetirement (prototype))",
     );
     round_trip(
         EngineRequest::EngineStatusQuery(EngineStatusQuery::whole_engine()),
-        "(EngineStatusQuery WholeEngine)",
+        "(EngineStatusQuery (WholeEngine))",
     );
     round_trip(
         EngineRequest::ComponentStatusQuery(ComponentStatusQuery {
             component: router_name(),
         }),
-        "(ComponentStatusQuery persona-router)",
+        "(ComponentStatusQuery (persona-router))",
     );
     round_trip(
         EngineRequest::ComponentStartup(ComponentStartup {
             component: router_name(),
         }),
-        "(ComponentStartup persona-router)",
+        "(ComponentStartup (persona-router))",
     );
     round_trip(
         EngineRequest::ComponentShutdown(ComponentShutdown {
             component: router_name(),
         }),
-        "(ComponentShutdown persona-router)",
+        "(ComponentShutdown (persona-router))",
     );
 }
 
@@ -109,14 +109,14 @@ fn canonical_engine_replies_round_trip() {
             engine: engine_id(),
             label: engine_label(),
         }),
-        "(EngineLaunchAcceptance prototype example-engine)",
+        "(EngineLaunchAccepted (prototype example-engine))",
     );
     round_trip(
         EngineReply::EngineLaunchRejected(EngineLaunchRejection {
             label: engine_label(),
             reason: EngineLaunchRejectionReason::EngineLabelAlreadyExists,
         }),
-        "(EngineLaunchRejection example-engine EngineLabelAlreadyExists)",
+        "(EngineLaunchRejected (example-engine EngineLabelAlreadyExists))",
     );
     round_trip(
         EngineReply::EngineCatalog(EngineCatalog {
@@ -126,20 +126,20 @@ fn canonical_engine_replies_round_trip() {
                 phase: EnginePhase::Running,
             }],
         }),
-        "(EngineCatalog [(EngineCatalogEntry prototype example-engine Running)])",
+        "(EngineCatalog ([(prototype example-engine Running)]))",
     );
     round_trip(
         EngineReply::EngineRetirementAccepted(EngineRetirementAcceptance {
             engine: engine_id(),
         }),
-        "(EngineRetirementAcceptance prototype)",
+        "(EngineRetirementAccepted (prototype))",
     );
     round_trip(
         EngineReply::EngineRetirementRejected(EngineRetirementRejection {
             engine: engine_id(),
             reason: EngineRetirementRejectionReason::EngineNotFound,
         }),
-        "(EngineRetirementRejection prototype EngineNotFound)",
+        "(EngineRetirementRejected (prototype EngineNotFound))",
     );
     round_trip(
         EngineReply::EngineStatus(EngineStatus {
@@ -147,31 +147,31 @@ fn canonical_engine_replies_round_trip() {
             phase: EnginePhase::Running,
             components: vec![router_status.clone()],
         }),
-        "(EngineStatus 1 Running [(ComponentStatus persona-router Router Running Running)])",
+        "(EngineStatus (1 Running [(persona-router Router Running Running)]))",
     );
     round_trip(
         EngineReply::ComponentStatus(router_status.clone()),
-        "(ComponentStatus persona-router Router Running Running)",
+        "(ComponentStatus (persona-router Router Running Running))",
     );
     round_trip(
         EngineReply::ComponentStatusMissing(ComponentStatusMissing {
             component: router_name(),
         }),
-        "(ComponentStatusMissing persona-router)",
+        "(ComponentStatusMissing (persona-router))",
     );
     round_trip(
         EngineReply::SupervisorActionAccepted(SupervisorActionAcceptance {
             component: router_name(),
             desired_state: ComponentDesiredState::Running,
         }),
-        "(SupervisorActionAcceptance persona-router Running)",
+        "(SupervisorActionAccepted (persona-router Running))",
     );
     round_trip(
         EngineReply::SupervisorActionRejected(SupervisorActionRejection {
             component: router_name(),
             reason: SupervisorActionRejectionReason::ComponentNotManaged,
         }),
-        "(SupervisorActionRejection persona-router ComponentNotManaged)",
+        "(SupervisorActionRejected (persona-router ComponentNotManaged))",
     );
 }
 
@@ -183,25 +183,25 @@ fn canonical_supervision_requests_round_trip() {
             expected_kind: ComponentKind::Router,
             supervision_protocol_version: SupervisionProtocolVersion::new(1),
         }),
-        "(ComponentHello Router Router 1)",
+        "(ComponentHello (\"Router\" Router 1))",
     );
     round_trip(
         SupervisionRequest::ComponentReadinessQuery(ComponentReadinessQuery {
             component: router_name(),
         }),
-        "(ComponentReadinessQuery persona-router)",
+        "(ComponentReadinessQuery (persona-router))",
     );
     round_trip(
         SupervisionRequest::ComponentHealthQuery(ComponentHealthQuery {
             component: router_name(),
         }),
-        "(ComponentHealthQuery persona-router)",
+        "(ComponentHealthQuery (persona-router))",
     );
     round_trip(
         SupervisionRequest::GracefulStopRequest(GracefulStopRequest {
             component: router_name(),
         }),
-        "(GracefulStopRequest persona-router)",
+        "(GracefulStopRequest (persona-router))",
     );
 }
 
@@ -214,36 +214,36 @@ fn canonical_supervision_replies_round_trip() {
             supervision_protocol_version: SupervisionProtocolVersion::new(1),
             last_fatal_startup_error: None,
         }),
-        "(ComponentIdentity Router Router 1 None)",
+        "(ComponentIdentity (\"Router\" Router 1 None))",
     );
     round_trip(
         SupervisionReply::ComponentReady(ComponentReady {
             component_started_at: None,
         }),
-        "(ComponentReady None)",
+        "(ComponentReady (None))",
     );
     round_trip(
         SupervisionReply::ComponentNotReady(ComponentNotReady {
             reason: ComponentNotReadyReason::NotYetBound,
         }),
-        "(ComponentNotReady NotYetBound)",
+        "(ComponentNotReady (NotYetBound))",
     );
     round_trip(
         SupervisionReply::ComponentHealthReport(ComponentHealthReport {
             health: ComponentHealth::Running,
         }),
-        "(ComponentHealthReport Running)",
+        "(ComponentHealthReport (Running))",
     );
     round_trip(
         SupervisionReply::GracefulStopAcknowledgement(GracefulStopAcknowledgement {
             drain_completed_at: None,
         }),
-        "(GracefulStopAcknowledgement None)",
+        "(GracefulStopAcknowledgement (None))",
     );
     round_trip(
         SupervisionReply::SupervisionUnimplemented(SupervisionUnimplemented {
             reason: SupervisionUnimplementedReason::NotInPrototypeScope,
         }),
-        "(SupervisionUnimplemented (NotInPrototypeScope))",
+        "(SupervisionUnimplemented ((NotInPrototypeScope)))",
     );
 }

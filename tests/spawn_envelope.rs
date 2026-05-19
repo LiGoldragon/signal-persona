@@ -39,7 +39,7 @@ fn spawn_envelope_round_trips_through_nota_text() {
     assert_eq!(recovered, envelope);
     assert_eq!(
         text,
-        "(SpawnEnvelope default Message Message (UnixUser 1001) \"/var/lib/persona/default/message\" \"/var/run/persona/default/message.sock\" 432 \"/var/run/persona/default/message.supervision.sock\" 384 [(PeerSocket Router \"/var/run/persona/default/router.sock\")] \"/var/run/persona/default/persona.sock\" 1)"
+        "(default Message Message (UnixUser 1001) \"/var/lib/persona/default/message\" \"/var/run/persona/default/message.sock\" 432 \"/var/run/persona/default/message.supervision.sock\" 384 [(Router \"/var/run/persona/default/router.sock\")] \"/var/run/persona/default/persona.sock\" 1)"
     );
 }
 
