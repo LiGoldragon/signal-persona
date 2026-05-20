@@ -67,13 +67,13 @@ retired; the macro generates `kind()` directly.
 flowchart LR
     client["manager client"]
     contract["signal-persona"]
-    core["signal-core"]
+    frame["signal-frame"]
     daemon["persona daemon"]
     engine["accepted engine context"]
     components["supervised local components"]
 
     client -->|"Frame<EngineOperation, EngineReply>"| contract
-    core -->|"Signal frame + Signal verbs"| contract
+    frame -->|"frame envelope + signal_channel!"| contract
     contract -->|"typed manager payloads"| daemon
     daemon -->|"engine-scoped socket/context"| engine
     engine -->|"status + lifecycle supervision"| components
@@ -143,13 +143,17 @@ The three prototype variants — `Announce`, `Query`, `Stop` — are
 witness.
 
 `signal-frame` owns the frame envelope, exchange identifiers,
-handshake, and the `signal_channel!` macro. The six Sema verbs
+handshake, and the `signal_channel!` macro. The six Sema classes
 (`Assert` / `Mutate` / `Retract` / `Match` / `Subscribe` /
-`Validate`) live in `signal-sema` as typed-table execution
-vocabulary — they do not appear at this contract's public surface.
-Atomicity is structural — multi-payload `Request<Payload>` commits
-as one unit. This crate owns the manager payloads under contract-
-local operation roots.
+`Validate`) live in `signal-sema` as *payloadless classification
+labels* used for observation only — they do not appear at this
+contract's public surface. Per `skills/component-triad.md` §"Verbs
+come in three layers", contract operations (Layer 1) are
+domain-named, the daemon owns its typed Component Commands
+(Layer 2), and Sema classes (Layer 3) are projected for
+observation. Atomicity is structural — multi-payload
+`Request<Payload>` commits as one unit. This crate owns the manager
+payloads under contract-local operation roots.
 
 ## Typed Records
 
@@ -385,8 +389,8 @@ This crate owns:
 - `EngineOperation` and `EngineReply`, declared with `signal_channel!`.
 - `SupervisionOperation` and `SupervisionReply`, declared with a separate
   `signal_channel!`.
-- `Frame` / `FrameBody` aliases over `signal-core`.
-- `SupervisionFrame` / `SupervisionFrameBody` aliases over `signal-core`.
+- `Frame` / `FrameBody` aliases over `signal-frame`.
+- `SupervisionFrame` / `SupervisionFrameBody` aliases over `signal-frame`.
 - Manager engine-catalog, status, and component lifecycle payload records.
 - Closed status, health, phase, and rejection enums.
 - rkyv frame round-trip tests and NOTA text round-trip tests for the manager
@@ -407,7 +411,7 @@ This crate does not own:
 | Constraint | Witness |
 |---|---|
 | Each named relation has its own `signal_channel!` declaration. | source review in `src/lib.rs` |
-| Engine catalog creation/query/retirement are six-root Signal operations. | `engine_catalog_requests_round_trip_with_declared_signal_verbs` |
+| Engine catalog operations are contract-local verbs in verb form (Layer 1); Sema classification is projected by the daemon (Layer 3). | round-trip tests assert each variant's contract-local NOTA head. |
 | Every engine request/reply variant round-trips through a length-prefixed frame. | `nix flake check .#test-engine-manager` |
 | Every supervision request/reply variant round-trips through a length-prefixed frame. | `nix flake check .#test-engine-manager` |
 | `ComponentKind` has no `MessageProxy` variant. | `nix flake check .#test-no-message-proxy-kind` |
@@ -418,12 +422,12 @@ This crate does not own:
 | Requests carry no caller identity, class, proof, sender, timestamp, or minted engine id. | source review in `src/lib.rs` |
 | Wire enums contain no `Unknown` variant. | source review in `src/lib.rs`: every closed enum (`EnginePhase`, `ComponentKind`, `ComponentDesiredState`, `ComponentHealth`, etc.) is exhaustively matched in `tests/engine_manager.rs`; adding an `Unknown` variant breaks the match. |
 | Any record name containing the word `Unknown` represents a positive "entity not in our state" rejection, not a polling-shape escape hatch. | This crate has no such records today. |
-| Every `signal_channel!` request variant has a typed `signal_verb()` mapping. | `engine_catalog_requests_round_trip_with_declared_signal_verbs` and supervision-relation round-trip witness assert each variant's expected root. |
+| Each variant's NOTA head matches the contract-local verb declared in `signal_channel!`. | round-trip tests assert each variant's expected head for both relations. |
 | Round-trip witnesses cover every variant in rkyv. | `tests/engine_manager.rs` covers every request and reply variant for both relations. |
 | Round-trip witnesses cover every variant in NOTA. | `examples/canonical.nota` holds one canonical text example per request/reply variant for both relations; round-trip tests parse and re-emit each. |
 | No stringly-typed dispatch (`match s.as_str()`) for closed-set states. | All phase / kind / health / readiness / reason fields are typed closed enums. |
-| Contract crate dependencies use a named API reference (branch or tag), not a raw revision pin. | `Cargo.toml` review: `signal-core` and downstream contract crates declare `git = "..."` with a named-branch shape; raw `rev = "..."` pins are not used. |
-| Contract compatibility with `signal-core` is explicit. | `nix flake check .#test-version` |
+| Contract crate dependencies use a named API reference (branch or tag), not a raw revision pin. | `Cargo.toml` review: `signal-frame` and downstream contract crates declare `git = "..."` with a named-branch shape; raw `rev = "..."` pins are not used. |
+| Contract compatibility with `signal-frame` is explicit. | `nix flake check .#test-version` |
 
 ## NOTA codec quirk on `signal_channel!` payload heads
 
@@ -437,8 +441,8 @@ Canonical examples and round-trip tests carry the payload heads.
 
 ## Versioning Pin Discipline
 
-This crate depends on `signal-core` via a named-branch reference,
-not a raw revision pin. The destination is a stable `signal-core`
+This crate depends on `signal-frame` via a named-branch reference,
+not a raw revision pin. The destination is a stable `signal-frame`
 API branch/bookmark once that lane is declared; raw `rev = "..."`
 pins are not used.
 
@@ -449,15 +453,19 @@ src/lib.rs              manager payload records and both signal_channel! declara
 examples/canonical.nota one canonical example per request/reply variant for both relations
 tests/engine_manager.rs frame and NOTA round trips for engine catalog and supervision records
 tests/spawn_envelope.rs SpawnEnvelope round trips
-tests/version.rs        signal-core version witness
+tests/version.rs        signal-frame version witness
 ```
 
 ## See Also
 
 - `/git/github.com/LiGoldragon/persona/ARCHITECTURE.md` — runtime manager
   that consumes this contract.
-- `/git/github.com/LiGoldragon/signal-core/ARCHITECTURE.md` — Signal frame
-  kernel and Signal verbs.
+- `/git/github.com/LiGoldragon/signal-frame/ARCHITECTURE.md` — Signal frame
+  kernel (envelope, exchange identifiers, handshake, macro).
+- `/git/github.com/LiGoldragon/signal-sema/ARCHITECTURE.md` —
+  payloadless Sema classification vocabulary used at the observation
+  layer.
 - `/git/github.com/LiGoldragon/signal-persona-auth/ARCHITECTURE.md` —
   provenance and ingress context vocabulary.
 - `~/primary/skills/contract-repo.md` — contract repo discipline.
+- `~/primary/skills/component-triad.md` §"Verbs come in three layers".

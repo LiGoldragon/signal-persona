@@ -43,9 +43,9 @@ relation.
 - `EngineRequest` / `EngineReply` (engine-catalog/CLI surface).
 - `SupervisionRequest` / `SupervisionReply` (manager↔component
   supervision relation).
-- `Frame` / `FrameBody` aliases over `signal-core`.
+- `Frame` / `FrameBody` aliases over `signal-frame`.
 - `SupervisionFrame` / `SupervisionFrameBody` aliases over
-  `signal-core`.
+  `signal-frame`.
 - Manager engine-catalog, status, and component lifecycle payload
   records.
 - Closed status / health / phase / rejection enums.
@@ -72,15 +72,18 @@ relation.
 - **Each named relation has its own `signal_channel!`.** Engine
   catalog and supervision are two relations on one crate's wire
   surface; do not fuse them into a single root enum.
-- **`signal-core` provides the six-root verb spine.** The roots are
-  `Assert` / `Mutate` / `Retract` / `Match` / `Subscribe` /
-  `Validate`. Atomicity is structural — multi-op
-  `Request<Payload>` commits as one unit; there is no separate
-  `Atomic` verb.
-- **Every request variant declares a Signal root verb.** The
+- **`signal-frame` provides the wire kernel; `signal-sema` provides
+  the six payloadless classification labels.** Under the three-layer
+  model affirmed 2026-05-20, contract operations on the wire (Layer 1)
+  are contract-local domain verbs; daemons own typed Component
+  Commands (Layer 2); Sema classes (Layer 3 — `Assert` / `Mutate` /
+  `Retract` / `Match` / `Subscribe` / `Validate`) are payloadless
+  classification labels used for observation only. Atomicity is
+  structural — multi-payload `Request<Payload>` commits as one unit.
+- **Every request variant is a contract-local verb in verb form.** The
   `signal_channel!` declaration is the source of truth; the macro
-  generates `*Request::signal_verb()` and round-trip tests assert
-  every variant.
+  emits the NOTA codec keyed on the payload's record head. Round-trip
+  tests assert every variant's head.
 - **Wire enums are closed.** No `Unknown` variant; add the missing
   relation vector as a closed enum variant and coordinate the
   upgrade, per ESSENCE §"Perfect specificity at boundaries."
@@ -114,14 +117,16 @@ relation.
 
 ### Adding a new engine-catalog operation
 
-1. Decide whether the operation reads (`Match`), asserts a new
-   record (`Assert`), mutates state at stable identity (`Mutate`),
-   or retracts a record (`Retract`).
+1. Pick a contract-local verb (verb form) that describes what the
+   caller is asking at this boundary (`Launch`, `Query`, `Retire`,
+   etc.). The daemon-side classification (Sema `Assert` / `Match` /
+   `Mutate` / `Retract`) is observation-only; do not put Sema
+   classes on the wire.
 2. Write the canonical NOTA example for the request and the
    expected reply in `examples/canonical.nota`.
 3. Declare the payload struct and reply variant in `src/lib.rs`.
-4. Add the variant to the `EngineRequest` `signal_channel!`
-   declaration with its root verb.
+4. Add the variant to the `EngineOperation` `signal_channel!`
+   declaration as a contract-local verb.
 5. Add the rkyv and NOTA round-trip witnesses.
 6. Update `ARCHITECTURE.md` engine-catalog table.
 
