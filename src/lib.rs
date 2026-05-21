@@ -9,16 +9,15 @@
 //! The contract speaks **contract-local verbs** per
 //! `reports/designer/241-signal-architecture-migration-guide.md`:
 //! - Engine relation: `Launch`, `Query`, `Retire`, `Start`, `Stop`.
-//! - Supervision relation: `Announce`, `Query`, `Stop`.
+//! - Engine management relation: `Announce`, `Query`, `Stop`.
 //!
 //! The six former universal verbs (Assert / Mutate / Retract / Match
 //! / Subscribe / Validate) are Sema-engine vocabulary now in
 //! `signal-sema`; they do not appear at this contract's public
 //! surface.
 
-use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode, NotaEnum, NotaRecord, NotaTransparent};
+use nota_codec::{NotaEnum, NotaRecord, NotaTransparent};
 use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
-use signal_frame::signal_channel;
 
 pub use signal_frame::{
     ExchangeFrameBody as FrameExchangeFrameBody, HandshakeReply, HandshakeRequest, ProtocolVersion,
@@ -167,63 +166,11 @@ pub struct EngineLaunch {
 
 /// Query targets on the engine-catalog relation. The contract-local
 /// `Query` operation root carries one of these as its payload.
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, PartialEq, Eq)]
 pub enum Query {
     Catalog(EngineCatalogScope),
     EngineStatus(EngineStatusScope),
     ComponentStatus(ComponentName),
-}
-
-impl NotaEncode for Query {
-    fn encode(&self, encoder: &mut Encoder) -> nota_codec::Result<()> {
-        match self {
-            Self::Catalog(scope) => {
-                encoder.start_record("Catalog")?;
-                scope.encode(encoder)?;
-                encoder.end_record()
-            }
-            Self::EngineStatus(scope) => {
-                encoder.start_record("EngineStatus")?;
-                scope.encode(encoder)?;
-                encoder.end_record()
-            }
-            Self::ComponentStatus(component) => {
-                encoder.start_record("ComponentStatus")?;
-                component.encode(encoder)?;
-                encoder.end_record()
-            }
-        }
-    }
-}
-
-impl NotaDecode for Query {
-    fn decode(decoder: &mut Decoder<'_>) -> nota_codec::Result<Self> {
-        let head = decoder.peek_record_head()?;
-        match head.as_str() {
-            "Catalog" => {
-                decoder.expect_record_head("Catalog")?;
-                let scope = EngineCatalogScope::decode(decoder)?;
-                decoder.expect_record_end()?;
-                Ok(Self::Catalog(scope))
-            }
-            "EngineStatus" => {
-                decoder.expect_record_head("EngineStatus")?;
-                let scope = EngineStatusScope::decode(decoder)?;
-                decoder.expect_record_end()?;
-                Ok(Self::EngineStatus(scope))
-            }
-            "ComponentStatus" => {
-                decoder.expect_record_head("ComponentStatus")?;
-                let component = ComponentName::decode(decoder)?;
-                decoder.expect_record_end()?;
-                Ok(Self::ComponentStatus(component))
-            }
-            other => Err(nota_codec::Error::UnknownKindForVerb {
-                verb: "Query",
-                got: other.to_string(),
-            }),
-        }
-    }
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
@@ -298,25 +245,53 @@ pub struct ActionRejection {
     pub reason: ActionRejectionReason,
 }
 
-signal_channel! {
-    channel Engine {
-        operation Launch(EngineLaunch),
-        operation Query(Query),
-        operation Retire(signal_persona_auth::EngineId),
-        operation Start(ComponentStartup),
-        operation Stop(ComponentShutdown),
+pub mod engine {
+    use nota_codec::NotaRecord;
+    use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
+    use signal_frame::signal_channel;
+    use signal_sema::SemaObservation;
+
+    use super::{
+        ActionAcceptance, ActionRejection, ComponentName, ComponentShutdown, ComponentStartup,
+        ComponentStatus, EngineCatalog, EngineLaunch, EngineStatus, LaunchAcceptance,
+        LaunchRejection, Query, RetirementRejection,
+    };
+
+    signal_channel! {
+        channel Engine {
+            operation Launch(EngineLaunch),
+            operation Query(Query),
+            operation Retire(signal_persona_auth::EngineId),
+            operation Start(ComponentStartup),
+            operation Stop(ComponentShutdown),
+        }
+        reply Reply {
+            Launched(LaunchAcceptance),
+            LaunchRejected(LaunchRejection),
+            Catalog(EngineCatalog),
+            EngineStatus(EngineStatus),
+            ComponentStatus(ComponentStatus),
+            ComponentMissing(ComponentName),
+            Retired(signal_persona_auth::EngineId),
+            RetireRejected(RetirementRejection),
+            ActionAccepted(ActionAcceptance),
+            ActionRejected(ActionRejection),
+        }
+        observable {
+            filter default;
+            operation_event OperationReceived;
+            effect_event EffectEmitted;
+        }
     }
-    reply EngineReply {
-        Launched(LaunchAcceptance),
-        LaunchRejected(LaunchRejection),
-        Catalog(EngineCatalog),
-        EngineStatus(EngineStatus),
-        ComponentStatus(ComponentStatus),
-        ComponentMissing(ComponentName),
-        Retired(signal_persona_auth::EngineId),
-        RetireRejected(RetirementRejection),
-        ActionAccepted(ActionAcceptance),
-        ActionRejected(ActionRejection),
+
+    #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+    pub struct OperationReceived {
+        pub operation: OperationKind,
+    }
+
+    #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
+    pub struct EffectEmitted {
+        pub observation: SemaObservation,
     }
 }
 
@@ -332,9 +307,9 @@ signal_channel! {
     Eq,
     Hash,
 )]
-pub struct SupervisionProtocolVersion(u16);
+pub struct EngineManagementProtocolVersion(u16);
 
-impl SupervisionProtocolVersion {
+impl EngineManagementProtocolVersion {
     pub const fn new(value: u16) -> Self {
         Self(value)
     }
@@ -425,14 +400,14 @@ pub enum ComponentNotReadyReason {
 pub struct Presence {
     pub expected_component: ComponentName,
     pub expected_kind: ComponentKind,
-    pub supervision_protocol_version: SupervisionProtocolVersion,
+    pub engine_management_protocol_version: EngineManagementProtocolVersion,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct ComponentIdentity {
     pub name: ComponentName,
     pub kind: ComponentKind,
-    pub supervision_protocol_version: SupervisionProtocolVersion,
+    pub engine_management_protocol_version: EngineManagementProtocolVersion,
     pub last_fatal_startup_error: Option<ComponentStartupError>,
 }
 
@@ -452,7 +427,7 @@ pub struct ComponentHealthReport {
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct GracefulStopAcknowledgement {
+pub struct StopAcknowledgement {
     pub drain_completed_at: Option<TimestampNanos>,
 }
 
@@ -468,66 +443,16 @@ pub enum ResourceKind {
     StateDirectory,
 }
 
-#[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SupervisionUnimplementedReason {
+#[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EngineManagementUnimplementedReason {
     NotInPrototypeScope,
     DependencyMissing(DependencyKind),
     ResourceUnavailable(ResourceKind),
 }
 
-impl NotaEncode for SupervisionUnimplementedReason {
-    fn encode(&self, encoder: &mut Encoder) -> nota_codec::Result<()> {
-        match self {
-            Self::NotInPrototypeScope => {
-                encoder.start_record("NotInPrototypeScope")?;
-                encoder.end_record()
-            }
-            Self::DependencyMissing(dependency) => {
-                encoder.start_record("DependencyMissing")?;
-                dependency.encode(encoder)?;
-                encoder.end_record()
-            }
-            Self::ResourceUnavailable(resource) => {
-                encoder.start_record("ResourceUnavailable")?;
-                resource.encode(encoder)?;
-                encoder.end_record()
-            }
-        }
-    }
-}
-
-impl NotaDecode for SupervisionUnimplementedReason {
-    fn decode(decoder: &mut Decoder<'_>) -> nota_codec::Result<Self> {
-        let head = decoder.peek_record_head()?;
-        match head.as_str() {
-            "NotInPrototypeScope" => {
-                decoder.expect_record_head("NotInPrototypeScope")?;
-                decoder.expect_record_end()?;
-                Ok(Self::NotInPrototypeScope)
-            }
-            "DependencyMissing" => {
-                decoder.expect_record_head("DependencyMissing")?;
-                let dependency = DependencyKind::decode(decoder)?;
-                decoder.expect_record_end()?;
-                Ok(Self::DependencyMissing(dependency))
-            }
-            "ResourceUnavailable" => {
-                decoder.expect_record_head("ResourceUnavailable")?;
-                let resource = ResourceKind::decode(decoder)?;
-                decoder.expect_record_end()?;
-                Ok(Self::ResourceUnavailable(resource))
-            }
-            other => Err(nota_codec::Error::UnknownKindForVerb {
-                verb: "SupervisionUnimplementedReason",
-                got: other.to_string(),
-            }),
-        }
-    }
-}
-
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
-pub struct SupervisionUnimplemented {
-    pub reason: SupervisionUnimplementedReason,
+pub struct EngineManagementUnimplemented {
+    pub reason: EngineManagementUnimplementedReason,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
@@ -545,90 +470,44 @@ pub struct SpawnEnvelope {
     pub state_dir: WirePath,
     pub domain_socket_path: WirePath,
     pub domain_socket_mode: SocketMode,
-    pub supervision_socket_path: WirePath,
-    pub supervision_socket_mode: SocketMode,
+    pub engine_management_socket_path: WirePath,
+    pub engine_management_socket_mode: SocketMode,
     pub peer_sockets: Vec<PeerSocket>,
     pub manager_socket: WirePath,
-    pub supervision_protocol_version: SupervisionProtocolVersion,
+    pub engine_management_protocol_version: EngineManagementProtocolVersion,
 }
 
-pub mod supervision {
-    use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
+pub mod engine_management {
+    use nota_codec::NotaEnum;
     use rkyv::{Archive, Deserialize as RkyvDeserialize, Serialize as RkyvSerialize};
     use signal_frame::signal_channel;
 
     use super::{
         ComponentHealthReport, ComponentIdentity, ComponentName, ComponentNotReady, ComponentReady,
-        GracefulStopAcknowledgement, Presence, SupervisionUnimplemented,
+        EngineManagementUnimplemented, Presence, StopAcknowledgement,
     };
 
-    /// Query targets on the supervision relation. The contract-local
+    /// Query targets on the engine-management relation. The contract-local
     /// `Query` operation root carries one of these as its payload.
-    #[derive(Archive, RkyvSerialize, RkyvDeserialize, Debug, Clone, PartialEq, Eq)]
+    #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, PartialEq, Eq)]
     pub enum Query {
         ReadinessStatus(ComponentName),
         HealthStatus(ComponentName),
     }
 
-    impl NotaEncode for Query {
-        fn encode(&self, encoder: &mut Encoder) -> nota_codec::Result<()> {
-            match self {
-                Self::ReadinessStatus(component) => {
-                    encoder.start_record("ReadinessStatus")?;
-                    component.encode(encoder)?;
-                    encoder.end_record()
-                }
-                Self::HealthStatus(component) => {
-                    encoder.start_record("HealthStatus")?;
-                    component.encode(encoder)?;
-                    encoder.end_record()
-                }
-            }
-        }
-    }
-
-    impl NotaDecode for Query {
-        fn decode(decoder: &mut Decoder<'_>) -> nota_codec::Result<Self> {
-            let head = decoder.peek_record_head()?;
-            match head.as_str() {
-                "ReadinessStatus" => {
-                    decoder.expect_record_head("ReadinessStatus")?;
-                    let component = ComponentName::decode(decoder)?;
-                    decoder.expect_record_end()?;
-                    Ok(Self::ReadinessStatus(component))
-                }
-                "HealthStatus" => {
-                    decoder.expect_record_head("HealthStatus")?;
-                    let component = ComponentName::decode(decoder)?;
-                    decoder.expect_record_end()?;
-                    Ok(Self::HealthStatus(component))
-                }
-                other => Err(nota_codec::Error::UnknownKindForVerb {
-                    verb: "supervision::Query",
-                    got: other.to_string(),
-                }),
-            }
-        }
-    }
-
     signal_channel! {
-        channel Supervision {
+        channel EngineManagement {
             operation Announce(Presence),
             operation Query(Query),
             operation Stop(ComponentName),
         }
-        reply SupervisionReply {
+        reply Reply {
             Identified(ComponentIdentity),
             Ready(ComponentReady),
             NotReady(ComponentNotReady),
             HealthReport(ComponentHealthReport),
-            StopAcknowledged(GracefulStopAcknowledgement),
-            Unimplemented(SupervisionUnimplemented),
+            StopAcknowledged(StopAcknowledgement),
+            Unimplemented(EngineManagementUnimplemented),
         }
     }
 }
-
-pub use supervision::{
-    SupervisionFrame, SupervisionFrameBody, SupervisionOperation, SupervisionOperationKind,
-    SupervisionReply, SupervisionReplyKind,
-};

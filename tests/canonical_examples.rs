@@ -1,21 +1,24 @@
 //! Canonical examples round-trip witness.
 //!
 //! Parses `examples/canonical.nota` end-to-end, decoding each record
-//! as an `EngineOperation`, `EngineReply`, `SupervisionOperation`, or
-//! `SupervisionReply` and asserting the re-encoded text equals the
+//! as an `EngineOperation`, `EngineReply`, `EngineManagementOperation`, or
+//! `EngineManagementReply` and asserting the re-encoded text equals the
 //! canonical form.
 
 use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
+use signal_persona::engine::{Operation as EngineOperation, Reply as EngineReply};
+use signal_persona::engine_management::{
+    Operation as EngineManagementOperation, Reply as EngineManagementReply,
+};
 use signal_persona::{
     ActionAcceptance, ActionRejection, ActionRejectionReason, ComponentDesiredState,
     ComponentHealth, ComponentHealthReport, ComponentIdentity, ComponentKind, ComponentName,
     ComponentNotReady, ComponentNotReadyReason, ComponentReady, ComponentShutdown,
     ComponentStartup, ComponentStatus, EngineCatalog, EngineCatalogEntry, EngineCatalogScope,
-    EngineGeneration, EngineLabel, EngineLaunch, EngineOperation, EnginePhase, EngineReply,
-    EngineStatus, EngineStatusScope, GracefulStopAcknowledgement, LaunchAcceptance,
-    LaunchRejection, LaunchRejectionReason, Presence, Query, RetirementRejection,
-    RetirementRejectionReason, SupervisionOperation, SupervisionProtocolVersion, SupervisionReply,
-    SupervisionUnimplemented, SupervisionUnimplementedReason, supervision,
+    EngineGeneration, EngineLabel, EngineLaunch, EngineManagementProtocolVersion,
+    EngineManagementUnimplemented, EngineManagementUnimplementedReason, EnginePhase, EngineStatus,
+    EngineStatusScope, LaunchAcceptance, LaunchRejection, LaunchRejectionReason, Presence, Query,
+    RetirementRejection, RetirementRejectionReason, StopAcknowledgement, engine_management,
 };
 use signal_persona_auth::EngineId;
 
@@ -160,68 +163,68 @@ fn canonical_engine_replies_round_trip() {
 }
 
 #[test]
-fn canonical_supervision_operations_round_trip() {
+fn canonical_engine_management_operations_round_trip() {
     round_trip(
-        SupervisionOperation::Announce(Presence {
+        EngineManagementOperation::Announce(Presence {
             expected_component: ComponentName::new("Router"),
             expected_kind: ComponentKind::Router,
-            supervision_protocol_version: SupervisionProtocolVersion::new(1),
+            engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
         }),
         "(Announce (\"Router\" Router 1))",
     );
     round_trip(
-        SupervisionOperation::Query(supervision::Query::ReadinessStatus(router_name())),
+        EngineManagementOperation::Query(engine_management::Query::ReadinessStatus(router_name())),
         "(Query (ReadinessStatus persona-router))",
     );
     round_trip(
-        SupervisionOperation::Query(supervision::Query::HealthStatus(router_name())),
+        EngineManagementOperation::Query(engine_management::Query::HealthStatus(router_name())),
         "(Query (HealthStatus persona-router))",
     );
     round_trip(
-        SupervisionOperation::Stop(router_name()),
+        EngineManagementOperation::Stop(router_name()),
         "(Stop persona-router)",
     );
 }
 
 #[test]
-fn canonical_supervision_replies_round_trip() {
+fn canonical_engine_management_replies_round_trip() {
     round_trip(
-        SupervisionReply::Identified(ComponentIdentity {
+        EngineManagementReply::Identified(ComponentIdentity {
             name: ComponentName::new("Router"),
             kind: ComponentKind::Router,
-            supervision_protocol_version: SupervisionProtocolVersion::new(1),
+            engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
             last_fatal_startup_error: None,
         }),
         "(Identified (\"Router\" Router 1 None))",
     );
     round_trip(
-        SupervisionReply::Ready(ComponentReady {
+        EngineManagementReply::Ready(ComponentReady {
             component_started_at: None,
         }),
         "(Ready (None))",
     );
     round_trip(
-        SupervisionReply::NotReady(ComponentNotReady {
+        EngineManagementReply::NotReady(ComponentNotReady {
             reason: ComponentNotReadyReason::NotYetBound,
         }),
         "(NotReady (NotYetBound))",
     );
     round_trip(
-        SupervisionReply::HealthReport(ComponentHealthReport {
+        EngineManagementReply::HealthReport(ComponentHealthReport {
             health: ComponentHealth::Running,
         }),
         "(HealthReport (Running))",
     );
     round_trip(
-        SupervisionReply::StopAcknowledged(GracefulStopAcknowledgement {
+        EngineManagementReply::StopAcknowledged(StopAcknowledgement {
             drain_completed_at: None,
         }),
         "(StopAcknowledged (None))",
     );
     round_trip(
-        SupervisionReply::Unimplemented(SupervisionUnimplemented {
-            reason: SupervisionUnimplementedReason::NotInPrototypeScope,
+        EngineManagementReply::Unimplemented(EngineManagementUnimplemented {
+            reason: EngineManagementUnimplementedReason::NotInPrototypeScope,
         }),
-        "(Unimplemented ((NotInPrototypeScope)))",
+        "(Unimplemented (NotInPrototypeScope))",
     );
 }

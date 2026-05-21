@@ -1,21 +1,32 @@
 use nota_codec::{Decoder, Encoder, NotaDecode, NotaEncode};
 use signal_frame::{
     ExchangeIdentifier, ExchangeLane, LaneSequence, NonEmpty, Reply, RequestPayload, SessionEpoch,
-    SubReply,
+    SubReply, SubscriptionTokenInner,
+};
+use signal_persona::engine::{
+    EffectEmitted, Event as EngineEvent, EventKind as EngineEventKind, Frame as EngineFrame,
+    FrameBody as EngineFrameBody, ObserverFilter, ObserverFilterMatch, ObserverSubscriptionToken,
+    Operation as EngineOperation, OperationKind as EngineOperationKind, OperationReceived,
+    Reply as EngineReply, StreamKind as EngineStreamKind,
+};
+use signal_persona::engine_management::{
+    Frame as EngineManagementFrame, FrameBody as EngineManagementFrameBody,
+    Operation as EngineManagementOperation, OperationKind as EngineManagementOperationKind,
+    Reply as EngineManagementReply,
 };
 use signal_persona::{
     ActionAcceptance, ActionRejection, ActionRejectionReason, ComponentDesiredState,
     ComponentHealth, ComponentHealthReport, ComponentIdentity, ComponentKind, ComponentName,
     ComponentNotReady, ComponentNotReadyReason, ComponentReady, ComponentShutdown,
     ComponentStartup, ComponentStartupError, ComponentStatus, DependencyKind, EngineCatalog,
-    EngineCatalogEntry, EngineCatalogScope, EngineFrame, EngineFrameBody, EngineGeneration,
-    EngineLabel, EngineLaunch, EngineOperation, EngineOperationKind, EnginePhase, EngineReply,
-    EngineStatus, EngineStatusScope, GracefulStopAcknowledgement, LaunchAcceptance,
-    LaunchRejection, LaunchRejectionReason, Presence, Query, ResourceKind, RetirementRejection,
-    RetirementRejectionReason, SupervisionFrame, SupervisionFrameBody, SupervisionOperation,
-    SupervisionOperationKind, SupervisionProtocolVersion, SupervisionReply,
-    SupervisionUnimplemented, SupervisionUnimplementedReason, TimestampNanos, supervision,
+    EngineCatalogEntry, EngineCatalogScope, EngineGeneration, EngineLabel, EngineLaunch,
+    EngineManagementProtocolVersion, EngineManagementUnimplemented,
+    EngineManagementUnimplementedReason, EnginePhase, EngineStatus, EngineStatusScope,
+    LaunchAcceptance, LaunchRejection, LaunchRejectionReason, Presence, Query, ResourceKind,
+    RetirementRejection, RetirementRejectionReason, StopAcknowledgement, TimestampNanos,
+    engine_management,
 };
+use signal_sema::{SemaObservation, SemaOperation, SemaOutcome};
 
 fn exchange() -> ExchangeIdentifier {
     ExchangeIdentifier::new(
@@ -26,7 +37,7 @@ fn exchange() -> ExchangeIdentifier {
 }
 
 fn completed_reply<ReplyPayload>(payload: ReplyPayload) -> Reply<ReplyPayload> {
-    Reply::completed(NonEmpty::single(SubReply::Ok { payload }))
+    Reply::committed(NonEmpty::single(SubReply::Ok(payload)))
 }
 
 fn round_trip_engine_operation(operation: EngineOperation) -> EngineOperation {
@@ -57,7 +68,7 @@ fn round_trip_engine_reply(reply: EngineReply) -> EngineReply {
     match decoded.into_body() {
         EngineFrameBody::Reply { reply, .. } => match reply {
             Reply::Accepted { per_operation, .. } => match per_operation.into_head() {
-                SubReply::Ok { payload, .. } => payload,
+                SubReply::Ok(payload) => payload,
                 other => panic!("expected accepted engine reply payload, got {other:?}"),
             },
             other => panic!("expected accepted engine reply, got {other:?}"),
@@ -66,40 +77,42 @@ fn round_trip_engine_reply(reply: EngineReply) -> EngineReply {
     }
 }
 
-fn round_trip_supervision_operation(operation: SupervisionOperation) -> SupervisionOperation {
-    let frame = SupervisionFrame::new(SupervisionFrameBody::Request {
+fn round_trip_engine_management_operation(
+    operation: EngineManagementOperation,
+) -> EngineManagementOperation {
+    let frame = EngineManagementFrame::new(EngineManagementFrameBody::Request {
         exchange: exchange(),
         request: operation.clone().into_request(),
     });
     let bytes = frame.encode_length_prefixed().expect("encode operation");
-    let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode operation");
+    let decoded = EngineManagementFrame::decode_length_prefixed(&bytes).expect("decode operation");
 
     match decoded.into_body() {
-        SupervisionFrameBody::Request {
+        EngineManagementFrameBody::Request {
             request: decoded_request,
             ..
         } => decoded_request.payloads().head().clone(),
-        other => panic!("expected supervision request, got {other:?}"),
+        other => panic!("expected engine_management request, got {other:?}"),
     }
 }
 
-fn round_trip_supervision_reply(reply: SupervisionReply) -> SupervisionReply {
-    let frame = SupervisionFrame::new(SupervisionFrameBody::Reply {
+fn round_trip_engine_management_reply(reply: EngineManagementReply) -> EngineManagementReply {
+    let frame = EngineManagementFrame::new(EngineManagementFrameBody::Reply {
         exchange: exchange(),
         reply: completed_reply(reply.clone()),
     });
     let bytes = frame.encode_length_prefixed().expect("encode reply");
-    let decoded = SupervisionFrame::decode_length_prefixed(&bytes).expect("decode reply");
+    let decoded = EngineManagementFrame::decode_length_prefixed(&bytes).expect("decode reply");
 
     match decoded.into_body() {
-        SupervisionFrameBody::Reply { reply, .. } => match reply {
+        EngineManagementFrameBody::Reply { reply, .. } => match reply {
             Reply::Accepted { per_operation, .. } => match per_operation.into_head() {
-                SubReply::Ok { payload, .. } => payload,
-                other => panic!("expected accepted supervision reply payload, got {other:?}"),
+                SubReply::Ok(payload) => payload,
+                other => panic!("expected accepted engine_management reply payload, got {other:?}"),
             },
-            other => panic!("expected accepted supervision reply, got {other:?}"),
+            other => panic!("expected accepted engine_management reply, got {other:?}"),
         },
-        other => panic!("expected supervision reply, got {other:?}"),
+        other => panic!("expected engine_management reply, got {other:?}"),
     }
 }
 
@@ -289,6 +302,16 @@ fn engine_operation_kind_is_auto_generated_by_macro() {
             }),
             EngineOperationKind::Stop,
         ),
+        (
+            EngineOperation::Tap(ObserverFilter::All),
+            EngineOperationKind::Tap,
+        ),
+        (
+            EngineOperation::Untap(ObserverSubscriptionToken::new(SubscriptionTokenInner::new(
+                7,
+            ))),
+            EngineOperationKind::Untap,
+        ),
     ];
 
     for (operation, expected_kind) in cases {
@@ -297,23 +320,58 @@ fn engine_operation_kind_is_auto_generated_by_macro() {
 }
 
 #[test]
-fn supervision_operation_kind_is_auto_generated_by_macro() {
+fn engine_observable_surface_is_macro_generated() {
+    let operation_event = OperationReceived {
+        operation: EngineOperationKind::Launch,
+    };
+    let effect_event = EffectEmitted {
+        observation: SemaObservation::new(SemaOperation::Mutate, SemaOutcome::Mutated),
+    };
+
+    assert!(ObserverFilter::All.matches_operation_received(&operation_event));
+    assert!(ObserverFilter::All.matches_effect_emitted(&effect_event));
+    assert!(ObserverFilter::OperationsOnly.matches_operation_received(&operation_event));
+    assert!(!ObserverFilter::OperationsOnly.matches_effect_emitted(&effect_event));
+    assert!(!ObserverFilter::EffectsOnly.matches_operation_received(&operation_event));
+    assert!(ObserverFilter::EffectsOnly.matches_effect_emitted(&effect_event));
+
+    assert_eq!(
+        EngineOperation::Tap(ObserverFilter::All).opened_stream(),
+        Some(EngineStreamKind::ObserverStream)
+    );
+    assert_eq!(
+        EngineOperation::Untap(ObserverSubscriptionToken::new(SubscriptionTokenInner::new(
+            9
+        ),))
+        .closed_stream(),
+        Some(EngineStreamKind::ObserverStream)
+    );
+
+    let event = EngineEvent::OperationReceived(operation_event);
+    assert_eq!(event.kind(), EngineEventKind::OperationReceived);
+    assert_eq!(event.stream_kind(), EngineStreamKind::ObserverStream);
+}
+
+#[test]
+fn engine_management_operation_kind_is_auto_generated_by_macro() {
     let cases = [
         (
-            SupervisionOperation::Announce(Presence {
+            EngineManagementOperation::Announce(Presence {
                 expected_component: router_name(),
                 expected_kind: ComponentKind::Router,
-                supervision_protocol_version: SupervisionProtocolVersion::new(1),
+                engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
             }),
-            SupervisionOperationKind::Announce,
+            EngineManagementOperationKind::Announce,
         ),
         (
-            SupervisionOperation::Query(supervision::Query::ReadinessStatus(router_name())),
-            SupervisionOperationKind::Query,
+            EngineManagementOperation::Query(engine_management::Query::ReadinessStatus(
+                router_name(),
+            )),
+            EngineManagementOperationKind::Query,
         ),
         (
-            SupervisionOperation::Stop(router_name()),
-            SupervisionOperationKind::Stop,
+            EngineManagementOperation::Stop(router_name()),
+            EngineManagementOperationKind::Stop,
         ),
     ];
 
@@ -354,99 +412,102 @@ fn explicit_variants_lift_manager_payloads_into_channel_enums() {
     let presence = Presence {
         expected_component: router_name(),
         expected_kind: ComponentKind::Router,
-        supervision_protocol_version: SupervisionProtocolVersion::new(1),
+        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
     };
-    let operation = SupervisionOperation::Announce(presence.clone());
-    assert_eq!(operation, SupervisionOperation::Announce(presence));
+    let operation = EngineManagementOperation::Announce(presence.clone());
+    assert_eq!(operation, EngineManagementOperation::Announce(presence));
 
     let ready = ComponentReady {
         component_started_at: Some(TimestampNanos::new(42)),
     };
-    let reply = SupervisionReply::Ready(ready.clone());
-    assert_eq!(reply, SupervisionReply::Ready(ready));
+    let reply = EngineManagementReply::Ready(ready.clone());
+    assert_eq!(reply, EngineManagementReply::Ready(ready));
 }
 
 #[test]
-fn supervision_operations_round_trip_through_length_prefixed_frames() {
-    let announce = SupervisionOperation::Announce(Presence {
+fn engine_management_operations_round_trip_through_length_prefixed_frames() {
+    let announce = EngineManagementOperation::Announce(Presence {
         expected_component: router_name(),
         expected_kind: ComponentKind::Router,
-        supervision_protocol_version: SupervisionProtocolVersion::new(1),
+        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
     });
-    assert_eq!(round_trip_supervision_operation(announce.clone()), announce);
+    assert_eq!(
+        round_trip_engine_management_operation(announce.clone()),
+        announce
+    );
 
     for query in [
-        supervision::Query::ReadinessStatus(router_name()),
-        supervision::Query::HealthStatus(router_name()),
+        engine_management::Query::ReadinessStatus(router_name()),
+        engine_management::Query::HealthStatus(router_name()),
     ] {
-        let operation = SupervisionOperation::Query(query);
+        let operation = EngineManagementOperation::Query(query);
         assert_eq!(
-            round_trip_supervision_operation(operation.clone()),
+            round_trip_engine_management_operation(operation.clone()),
             operation
         );
     }
 
-    let stop = SupervisionOperation::Stop(router_name());
-    assert_eq!(round_trip_supervision_operation(stop.clone()), stop);
+    let stop = EngineManagementOperation::Stop(router_name());
+    assert_eq!(round_trip_engine_management_operation(stop.clone()), stop);
 }
 
 #[test]
-fn supervision_replies_round_trip_through_length_prefixed_frames() {
+fn engine_management_replies_round_trip_through_length_prefixed_frames() {
     let replies = [
-        SupervisionReply::Identified(ComponentIdentity {
+        EngineManagementReply::Identified(ComponentIdentity {
             name: router_name(),
             kind: ComponentKind::Router,
-            supervision_protocol_version: SupervisionProtocolVersion::new(1),
+            engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
             last_fatal_startup_error: None,
         }),
-        SupervisionReply::Ready(ComponentReady {
+        EngineManagementReply::Ready(ComponentReady {
             component_started_at: Some(TimestampNanos::new(100)),
         }),
-        SupervisionReply::NotReady(ComponentNotReady {
+        EngineManagementReply::NotReady(ComponentNotReady {
             reason: ComponentNotReadyReason::AwaitingDependency,
         }),
-        SupervisionReply::HealthReport(ComponentHealthReport {
+        EngineManagementReply::HealthReport(ComponentHealthReport {
             health: ComponentHealth::Running,
         }),
-        SupervisionReply::StopAcknowledged(GracefulStopAcknowledgement {
+        EngineManagementReply::StopAcknowledged(StopAcknowledgement {
             drain_completed_at: Some(TimestampNanos::new(200)),
         }),
-        SupervisionReply::Unimplemented(SupervisionUnimplemented {
-            reason: SupervisionUnimplementedReason::NotInPrototypeScope,
+        EngineManagementReply::Unimplemented(EngineManagementUnimplemented {
+            reason: EngineManagementUnimplementedReason::NotInPrototypeScope,
         }),
     ];
 
     for reply in replies {
-        assert_eq!(round_trip_supervision_reply(reply.clone()), reply);
+        assert_eq!(round_trip_engine_management_reply(reply.clone()), reply);
     }
 }
 
 #[test]
-fn supervision_payloads_round_trip_through_nota_text() {
-    let operation = SupervisionOperation::Announce(Presence {
+fn engine_management_payloads_round_trip_through_nota_text() {
+    let operation = EngineManagementOperation::Announce(Presence {
         expected_component: router_name(),
         expected_kind: ComponentKind::Router,
-        supervision_protocol_version: SupervisionProtocolVersion::new(1),
+        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
     });
     let mut encoder = Encoder::new();
     operation.encode(&mut encoder).expect("encode");
     let text = encoder.into_string();
     let mut decoder = Decoder::new(&text);
-    let recovered = SupervisionOperation::decode(&mut decoder).expect("decode");
+    let recovered = EngineManagementOperation::decode(&mut decoder).expect("decode");
     assert_eq!(recovered, operation);
     assert_eq!(text, "(Announce (persona-router Router 1))");
 
-    let reply = SupervisionReply::Identified(ComponentIdentity {
+    let reply = EngineManagementReply::Identified(ComponentIdentity {
         name: router_name(),
         kind: ComponentKind::Router,
-        supervision_protocol_version: SupervisionProtocolVersion::new(1),
+        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
         last_fatal_startup_error: Some(ComponentStartupError::StoreOpenFailed),
     });
     let mut encoder = Encoder::new();
     reply.encode(&mut encoder).expect("encode");
     let text = encoder.into_string();
     let mut decoder = Decoder::new(&text);
-    let recovered = SupervisionReply::decode(&mut decoder).expect("decode");
+    let recovered = EngineManagementReply::decode(&mut decoder).expect("decode");
     assert_eq!(recovered, reply);
     assert_eq!(
         text,
@@ -455,18 +516,18 @@ fn supervision_payloads_round_trip_through_nota_text() {
 }
 
 #[test]
-fn supervision_unimplemented_round_trips_through_nota_text() {
+fn engine_management_unimplemented_round_trips_through_nota_text() {
     let cases = [
         (
-            SupervisionUnimplementedReason::NotInPrototypeScope,
-            "(NotInPrototypeScope)",
+            EngineManagementUnimplementedReason::NotInPrototypeScope,
+            "NotInPrototypeScope",
         ),
         (
-            SupervisionUnimplementedReason::DependencyMissing(DependencyKind::PeerComponent),
+            EngineManagementUnimplementedReason::DependencyMissing(DependencyKind::PeerComponent),
             "(DependencyMissing PeerComponent)",
         ),
         (
-            SupervisionUnimplementedReason::ResourceUnavailable(ResourceKind::SocketPath),
+            EngineManagementUnimplementedReason::ResourceUnavailable(ResourceKind::SocketPath),
             "(ResourceUnavailable SocketPath)",
         ),
     ];
@@ -477,19 +538,21 @@ fn supervision_unimplemented_round_trips_through_nota_text() {
         let text = encoder.into_string();
         let mut decoder = Decoder::new(&text);
         let recovered =
-            SupervisionUnimplementedReason::decode(&mut decoder).expect("decode reason");
+            EngineManagementUnimplementedReason::decode(&mut decoder).expect("decode reason");
         assert_eq!(recovered, reason);
         assert_eq!(text, expected_text);
     }
 
-    let reply = SupervisionReply::Unimplemented(SupervisionUnimplemented {
-        reason: SupervisionUnimplementedReason::DependencyMissing(DependencyKind::PeerComponent),
+    let reply = EngineManagementReply::Unimplemented(EngineManagementUnimplemented {
+        reason: EngineManagementUnimplementedReason::DependencyMissing(
+            DependencyKind::PeerComponent,
+        ),
     });
     let mut encoder = Encoder::new();
     reply.encode(&mut encoder).expect("encode");
     let text = encoder.into_string();
     let mut decoder = Decoder::new(&text);
-    let recovered = SupervisionReply::decode(&mut decoder).expect("decode reply");
+    let recovered = EngineManagementReply::decode(&mut decoder).expect("decode reply");
     assert_eq!(recovered, reply);
     assert_eq!(text, "(Unimplemented ((DependencyMissing PeerComponent)))");
 }
@@ -505,7 +568,7 @@ fn component_kind_does_not_define_message_proxy() {
 }
 
 #[test]
-fn supervision_requests_carry_no_domain_payload() {
+fn engine_management_requests_carry_no_domain_payload() {
     let source = std::fs::read_to_string("src/lib.rs").expect("read source");
 
     for forbidden in ["MessageBody", "RoleClaim", "TerminalInput"] {

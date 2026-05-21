@@ -4,7 +4,7 @@
 ;; contract-local verbs per
 ;; reports/designer/241-signal-architecture-migration-guide.md:
 ;; - Engine relation operations: Launch / Query / Retire / Start / Stop.
-;; - Supervision relation operations: Announce / Query / Stop.
+;; - Engine management relation operations: Announce / Query / Stop.
 ;;
 ;; The wire form for every operation is `(VariantName <payload>)`. The
 ;; inner payload is either a NotaRecord-derived struct encoded
@@ -69,36 +69,36 @@
 ;; EngineReply::ActionRejected
 (ActionRejected (persona-router ComponentNotManaged))
 
-;; ─── Supervision relation operations (SupervisionOperation) ───────
+;; ─── Engine management relation operations (EngineManagementOperation) ───────
 
-;; SupervisionOperation::Announce
+;; EngineManagementOperation::Announce
 (Announce ("Router" Router 1))
 
-;; SupervisionOperation::Query — readiness
+;; EngineManagementOperation::Query — readiness
 (Query (ReadinessStatus persona-router))
 
-;; SupervisionOperation::Query — health
+;; EngineManagementOperation::Query — health
 (Query (HealthStatus persona-router))
 
-;; SupervisionOperation::Stop
+;; EngineManagementOperation::Stop
 (Stop persona-router)
 
-;; ─── Supervision relation replies (SupervisionReply) ──────────────
+;; ─── Engine management relation replies (EngineManagementReply) ──────────────
 
-;; SupervisionReply::Identified — no last fatal startup error
+;; EngineManagementReply::Identified — no last fatal startup error
 (Identified ("Router" Router 1 None))
 
-;; SupervisionReply::Ready — started timestamp unknown
+;; EngineManagementReply::Ready — started timestamp unknown
 (Ready (None))
 
-;; SupervisionReply::NotReady
+;; EngineManagementReply::NotReady
 (NotReady (NotYetBound))
 
-;; SupervisionReply::HealthReport
+;; EngineManagementReply::HealthReport
 (HealthReport (Running))
 
-;; SupervisionReply::StopAcknowledged
+;; EngineManagementReply::StopAcknowledged
 (StopAcknowledged (None))
 
-;; SupervisionReply::Unimplemented — NotInPrototypeScope
-(Unimplemented ((NotInPrototypeScope)))
+;; EngineManagementReply::Unimplemented — NotInPrototypeScope
+(Unimplemented (NotInPrototypeScope))
