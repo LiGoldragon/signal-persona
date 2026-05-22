@@ -72,7 +72,7 @@
 ;; ─── Engine management relation operations (EngineManagementOperation) ───────
 
 ;; EngineManagementOperation::Announce
-(Announce ("Router" Router 1))
+(Announce ([Router] Router 1))
 
 ;; EngineManagementOperation::Query — readiness
 (Query (ReadinessStatus persona-router))
@@ -86,7 +86,7 @@
 ;; ─── Engine management relation replies (EngineManagementReply) ──────────────
 
 ;; EngineManagementReply::Identified — no last fatal startup error
-(Identified ("Router" Router 1 None))
+(Identified ([Router] Router 1 None))
 
 ;; EngineManagementReply::Ready — started timestamp unknown
 (Ready (None))

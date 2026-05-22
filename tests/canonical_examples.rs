@@ -170,7 +170,7 @@ fn canonical_engine_management_operations_round_trip() {
             expected_kind: ComponentKind::Router,
             engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
         }),
-        "(Announce (\"Router\" Router 1))",
+        "(Announce ([Router] Router 1))",
     );
     round_trip(
         EngineManagementOperation::Query(engine_management::Query::ReadinessStatus(router_name())),
@@ -195,7 +195,7 @@ fn canonical_engine_management_replies_round_trip() {
             engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
             last_fatal_startup_error: None,
         }),
-        "(Identified (\"Router\" Router 1 None))",
+        "(Identified ([Router] Router 1 None))",
     );
     round_trip(
         EngineManagementReply::Ready(ComponentReady {
