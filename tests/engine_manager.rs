@@ -219,8 +219,13 @@ fn engine_status_reply_round_trips_for_every_component_kind() {
     for (generation, kind, name) in [
         (7u64, ComponentKind::Mind, "persona-mind"),
         (8, ComponentKind::Message, "persona-message"),
-        (10, ComponentKind::Introspect, "persona-introspect"),
-        (11, ComponentKind::Orchestrate, "persona-orchestrate"),
+        (9, ComponentKind::Router, "persona-router"),
+        (10, ComponentKind::System, "persona-system"),
+        (11, ComponentKind::Harness, "persona-harness"),
+        (12, ComponentKind::Terminal, "persona-terminal"),
+        (13, ComponentKind::Introspect, "persona-introspect"),
+        (14, ComponentKind::Orchestrate, "persona-orchestrate"),
+        (15, ComponentKind::Spirit, "persona-spirit"),
     ] {
         let reply = EngineReply::EngineStatus(EngineStatus {
             generation: EngineGeneration::new(generation),
@@ -565,6 +570,7 @@ fn component_kind_does_not_define_message_proxy() {
     assert!(source.contains("Message,"));
     assert!(source.contains("Orchestrate,"));
     assert!(source.contains("Introspect,"));
+    assert!(source.contains("Spirit,"));
 }
 
 #[test]

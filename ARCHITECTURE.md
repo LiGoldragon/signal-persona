@@ -268,12 +268,14 @@ System
 Harness
 Terminal
 Introspect
+Spirit
 ```
 
 The `Message` variant (renamed from the retired `MessageProxy`)
 names the engine's supervised message-ingress component. The
 "proxy" name retires from variant, socket, binary, and env-var
 vocabulary; the supervised daemon binary is `persona-message-daemon`.
+The `Spirit` variant names the per-engine intent substrate daemon.
 
 `ComponentStatus` combines both:
 

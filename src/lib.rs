@@ -92,6 +92,7 @@ pub enum ComponentKind {
     Terminal,
     Introspect,
     Orchestrate,
+    Spirit,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaEnum, Debug, Clone, Copy, PartialEq, Eq)]
