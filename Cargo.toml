@@ -5,7 +5,7 @@ edition      = "2024"
 rust-version = "1.85"
 license      = "MIT OR Apache-2.0"
 repository   = "https://github.com/LiGoldragon/signal-persona"
-description  = "Persona binary wire contract."
+description  = "Retired compatibility shim for the former combined Persona signal contract."
 publish      = false
 
 [lib]
@@ -16,6 +16,8 @@ path = "src/lib.rs"
 nota-codec = { git = "https://github.com/LiGoldragon/nota-codec.git", branch = "main" }
 rkyv = { version = "0.8", default-features = false, features = ["std", "bytecheck", "little_endian", "pointer_width_32", "unaligned"] }
 signal-frame = { git = "https://github.com/LiGoldragon/signal-frame.git", branch = "main" }
+owner-signal-persona = { git = "https://github.com/LiGoldragon/owner-signal-persona.git", branch = "main" }
+signal-persona-engine-management = { git = "https://github.com/LiGoldragon/signal-persona-engine-management.git", branch = "main" }
 signal-persona-origin = { git = "https://github.com/LiGoldragon/signal-persona-origin.git" }
 signal-sema = { git = "https://github.com/LiGoldragon/signal-sema.git", branch = "main" }
 

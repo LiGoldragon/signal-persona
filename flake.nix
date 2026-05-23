@@ -1,5 +1,5 @@
 {
-  description = "Persona binary wire contract.";
+  description = "Retired compatibility shim for the former combined Persona signal contract.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -28,16 +28,7 @@
           sha256 = "sha256-gh/xTkxKHL4eiRXzWv8KP7vfjSk61Iq48x47BEDFgfk=";
         };
         craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-        # Include `examples/` so canonical NOTA examples files are present
-        # at build time for `include_str!` in `tests/canonical_examples.rs`.
-        examplesFilter = path: _type: builtins.match ".*/examples(/.*)?$" path != null;
-        sourceFilter = path: type:
-          (craneLib.filterCargoSources path type) || (examplesFilter path type);
-        src = pkgs.lib.cleanSourceWith {
-          src = ./.;
-          filter = sourceFilter;
-          name = "source";
-        };
+        src = craneLib.cleanCargoSource ./.;
         commonArgs = {
           inherit src;
           strictDeps = true;
@@ -50,46 +41,11 @@
         checks = {
           build = craneLib.cargoBuild (commonArgs // { inherit cargoArtifacts; });
           test = craneLib.cargoTest (commonArgs // { inherit cargoArtifacts; });
-          test-engine-manager = craneLib.cargoTest (
+          test-shim = craneLib.cargoTest (
             commonArgs
             // {
               inherit cargoArtifacts;
-              cargoTestExtraArgs = "--test engine_manager";
-            }
-          );
-          test-no-message-proxy-kind = craneLib.cargoTest (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              cargoTestExtraArgs = "--test engine_manager component_kind_does_not_define_message_proxy -- --exact";
-            }
-          );
-          test-supervision-no-domain-payload = craneLib.cargoTest (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              cargoTestExtraArgs = "--test engine_manager supervision_requests_carry_no_domain_payload -- --exact";
-            }
-          );
-          test-supervision-unimplemented-round-trip = craneLib.cargoTest (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              cargoTestExtraArgs = "--test engine_manager supervision_unimplemented_round_trips_through_nota_text -- --exact";
-            }
-          );
-          test-spawn-envelope = craneLib.cargoTest (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              cargoTestExtraArgs = "--test spawn_envelope";
-            }
-          );
-          test-version = craneLib.cargoTest (
-            commonArgs
-            // {
-              inherit cargoArtifacts;
-              cargoTestExtraArgs = "--test version";
+              cargoTestExtraArgs = "--test shim";
             }
           );
           test-doc = craneLib.cargoTest (
