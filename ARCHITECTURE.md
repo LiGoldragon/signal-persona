@@ -55,8 +55,8 @@ vocabulary with "EngineManagement"):
 - `EngineLaunchAcceptance` → `LaunchAcceptance`
 - `EngineLaunchRejection` → `LaunchRejection`
 - `EngineLaunchRejectionReason` → `LaunchRejectionReason`
-- `EngineRetirement` removed (Retire takes `EngineId` directly)
-- `EngineRetirementAcceptance` removed (Retired carries `EngineId`)
+- `EngineRetirement` removed (Retire takes `EngineIdentifier` directly)
+- `EngineRetirementAcceptance` removed (Retired carries `EngineIdentifier`)
 - `EngineRetirementRejection` → `RetirementRejection`
 - `EngineRetirementRejectionReason` → `RetirementRejectionReason`
 - `EngineCatalogQuery` / `EngineStatusQuery` / `ComponentStatusQuery`
@@ -138,7 +138,7 @@ accidentally grow child-lifecycle verbs and vice versa.
 | `Query` | `Query::Catalog(EngineCatalogScope)` | `Catalog(EngineCatalog)` |
 | `Query` | `Query::EngineStatus(EngineStatusScope)` | `EngineStatus(EngineStatus)` |
 | `Query` | `Query::ComponentStatus(ComponentName)` | `ComponentStatus(ComponentStatus)` or `ComponentMissing(ComponentName)` |
-| `Retire` | `signal_persona_auth::EngineId` | `Retired(EngineId)` or `RetireRejected(RetirementRejection)` |
+| `Retire` | `signal_persona_origin::EngineIdentifier` | `Retired(EngineIdentifier)` or `RetireRejected(RetirementRejection)` |
 | `Start` | `ComponentStartup` | `ActionAccepted(ActionAcceptance)` or `ActionRejected(ActionRejection)` |
 | `Stop` | `ComponentShutdown` | `ActionAccepted(ActionAcceptance)` or `ActionRejected(ActionRejection)` |
 
@@ -309,7 +309,7 @@ EngineStatusScope
   | WholeEngine
 
 LaunchAcceptance
-  | engine: EngineId
+  | engine: EngineIdentifier
   | label:  EngineLabel
 
 LaunchRejection
@@ -325,12 +325,12 @@ EngineCatalog
   | engines: Vec<EngineCatalogEntry>
 
 EngineCatalogEntry
-  | engine: EngineId
+  | engine: EngineIdentifier
   | label:  EngineLabel
   | phase:  EnginePhase
 
 RetirementRejection
-  | engine: EngineId
+  | engine: EngineIdentifier
   | reason: RetirementRejectionReason
 
 RetirementRejectionReason
@@ -445,7 +445,7 @@ at startup and binds the named socket at the named mode.
 `SpawnEnvelope` is on the wire:
 
 - `signal-persona::SpawnEnvelope` (this crate, the typed wire form):
-  child-readable subset only — engine_id, component_kind,
+  child-readable subset only — engine_identifier, component_kind,
   component_name, owner_identity, state_dir, domain_socket_path,
   domain_socket_mode, engine_management_socket_path,
   engine_management_socket_mode, peer_sockets, manager_socket,
@@ -461,10 +461,10 @@ at startup and binds the named socket at the named mode.
 
 ```text
 SpawnEnvelope
-  | engine_id:                          EngineId
+  | engine_identifier:                          EngineIdentifier
   | component_kind:                     ComponentKind
-  | component_name:                     ComponentName               (from signal-persona-auth)
-  | owner_identity:                     OwnerIdentity               (from signal-persona-auth)
+  | component_name:                     ComponentName               (from signal-persona-origin)
+  | owner_identity:                     OwnerIdentity               (from signal-persona-origin)
   | state_dir:                          WirePath                    (absolute path; empty when stateless)
   | domain_socket_path:                 WirePath                    (the component's operational socket)
   | domain_socket_mode:                 SocketMode                  (0600 internal | 0660 for Message)
@@ -504,10 +504,10 @@ durable state**. Manager prepares the directory at envelope-mint
 time; child opens it only if it has state to persist.
 
 **`SpawnEnvelope.component_name` naming note**: the field is typed
-as `signal-persona-auth::ComponentName` (closed enum of supervised
+as `signal-persona-origin::ComponentName` (closed enum of supervised
 local component principals), **not** the open `signal-persona::ComponentName`
 instance newtype. The two crates currently share the type name; the
-intended split is `signal-persona-auth::ComponentPrincipal` for the
+intended split is `signal-persona-origin::ComponentPrincipal` for the
 closed enum of supervised principals and
 `signal-persona::ComponentInstanceName` for the open instance
 identifier. Until that rename lands, this field carries the
@@ -525,7 +525,7 @@ Older reports and previous architecture drafts used these names:
 - `EngineShutdown`
 - `EngineOwnershipTransfer`
 - `OwnerIdentity` (the field type still exists in
-  `signal-persona-auth`; the deprecated direct-on-Request shape does not)
+  `signal-persona-origin`; the deprecated direct-on-Request shape does not)
 - `SupervisionRequest` / `SupervisionReply`
 - `SupervisionFrame` / `SupervisionFrameBody`
 - `SupervisionOperation` / `SupervisionOperationKind`
@@ -641,7 +641,7 @@ tests/version.rs            signal-frame version witness
 - `/git/github.com/LiGoldragon/signal-sema/ARCHITECTURE.md` —
   payloadless Sema classification vocabulary used at the observation
   layer.
-- `/git/github.com/LiGoldragon/signal-persona-auth/ARCHITECTURE.md` —
+- `/git/github.com/LiGoldragon/signal-persona-origin/ARCHITECTURE.md` —
   provenance and ingress context vocabulary.
 - `/git/github.com/LiGoldragon/signal-version-handover/ARCHITECTURE.md` —
   working contract for component version handover (consumed by the

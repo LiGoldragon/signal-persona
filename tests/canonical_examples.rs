@@ -20,12 +20,12 @@ use signal_persona::{
     EngineStatusScope, LaunchAcceptance, LaunchRejection, LaunchRejectionReason, Presence, Query,
     RetirementRejection, RetirementRejectionReason, StopAcknowledgement, engine_management,
 };
-use signal_persona_auth::EngineId;
+use signal_persona_origin::EngineIdentifier;
 
 const CANONICAL: &str = include_str!("../examples/canonical.nota");
 
-fn engine_id() -> EngineId {
-    EngineId::new("prototype")
+fn engine_identifier() -> EngineIdentifier {
+    EngineIdentifier::new("prototype")
 }
 
 fn router_name() -> ComponentName {
@@ -75,7 +75,10 @@ fn canonical_engine_operations_round_trip() {
         EngineOperation::Query(Query::ComponentStatus(router_name())),
         "(Query (ComponentStatus persona-router))",
     );
-    round_trip(EngineOperation::Retire(engine_id()), "(Retire prototype)");
+    round_trip(
+        EngineOperation::Retire(engine_identifier()),
+        "(Retire prototype)",
+    );
     round_trip(
         EngineOperation::Start(ComponentStartup {
             component: router_name(),
@@ -100,7 +103,7 @@ fn canonical_engine_replies_round_trip() {
     };
     round_trip(
         EngineReply::Launched(LaunchAcceptance {
-            engine: engine_id(),
+            engine: engine_identifier(),
             label: engine_label(),
         }),
         "(Launched (prototype example-engine))",
@@ -115,7 +118,7 @@ fn canonical_engine_replies_round_trip() {
     round_trip(
         EngineReply::Catalog(EngineCatalog {
             engines: vec![EngineCatalogEntry {
-                engine: engine_id(),
+                engine: engine_identifier(),
                 label: engine_label(),
                 phase: EnginePhase::Running,
             }],
@@ -138,10 +141,13 @@ fn canonical_engine_replies_round_trip() {
         EngineReply::ComponentMissing(router_name()),
         "(ComponentMissing persona-router)",
     );
-    round_trip(EngineReply::Retired(engine_id()), "(Retired prototype)");
+    round_trip(
+        EngineReply::Retired(engine_identifier()),
+        "(Retired prototype)",
+    );
     round_trip(
         EngineReply::RetireRejected(RetirementRejection {
-            engine: engine_id(),
+            engine: engine_identifier(),
             reason: RetirementRejectionReason::EngineNotFound,
         }),
         "(RetireRejected (prototype EngineNotFound))",

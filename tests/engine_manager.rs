@@ -116,8 +116,8 @@ fn round_trip_engine_management_reply(reply: EngineManagementReply) -> EngineMan
     }
 }
 
-fn engine_id(label: &str) -> signal_persona_auth::EngineId {
-    signal_persona_auth::EngineId::new(label)
+fn engine_identifier(label: &str) -> signal_persona_origin::EngineIdentifier {
+    signal_persona_origin::EngineIdentifier::new(label)
 }
 
 fn router_name() -> ComponentName {
@@ -134,14 +134,14 @@ fn engine_operations_round_trip_through_length_prefixed_frames() {
     let catalog = EngineOperation::Query(Query::Catalog(EngineCatalogScope::AllEngines));
     assert_eq!(round_trip_engine_operation(catalog.clone()), catalog);
 
-    let retire = EngineOperation::Retire(engine_id("research"));
+    let retire = EngineOperation::Retire(engine_identifier("research"));
     assert_eq!(round_trip_engine_operation(retire.clone()), retire);
 }
 
 #[test]
 fn engine_replies_round_trip_through_length_prefixed_frames() {
     let launched = EngineReply::Launched(LaunchAcceptance {
-        engine: engine_id("research"),
+        engine: engine_identifier("research"),
         label: EngineLabel::new("research"),
     });
     assert_eq!(round_trip_engine_reply(launched.clone()), launched);
@@ -154,18 +154,18 @@ fn engine_replies_round_trip_through_length_prefixed_frames() {
 
     let catalog = EngineReply::Catalog(EngineCatalog {
         engines: vec![EngineCatalogEntry {
-            engine: engine_id("default"),
+            engine: engine_identifier("default"),
             label: EngineLabel::new("default"),
             phase: EnginePhase::Running,
         }],
     });
     assert_eq!(round_trip_engine_reply(catalog.clone()), catalog);
 
-    let retired = EngineReply::Retired(engine_id("research"));
+    let retired = EngineReply::Retired(engine_identifier("research"));
     assert_eq!(round_trip_engine_reply(retired.clone()), retired);
 
     let blocked = EngineReply::RetireRejected(RetirementRejection {
-        engine: engine_id("default"),
+        engine: engine_identifier("default"),
         reason: RetirementRejectionReason::EngineStillRunning,
     });
     assert_eq!(round_trip_engine_reply(blocked.clone()), blocked);
@@ -186,7 +186,7 @@ fn engine_operation_text_round_trips_match_canonical() {
 
     let reply = EngineReply::Catalog(EngineCatalog {
         engines: vec![EngineCatalogEntry {
-            engine: engine_id("default"),
+            engine: engine_identifier("default"),
             label: EngineLabel::new("default"),
             phase: EnginePhase::Running,
         }],
@@ -292,7 +292,7 @@ fn engine_operation_kind_is_auto_generated_by_macro() {
             EngineOperationKind::Query,
         ),
         (
-            EngineOperation::Retire(engine_id("research")),
+            EngineOperation::Retire(engine_identifier("research")),
             EngineOperationKind::Retire,
         ),
         (

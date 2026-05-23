@@ -183,7 +183,7 @@ pub enum LaunchRejectionReason {
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct LaunchAcceptance {
-    pub engine: signal_persona_auth::EngineId,
+    pub engine: signal_persona_origin::EngineIdentifier,
     pub label: EngineLabel,
 }
 
@@ -202,13 +202,13 @@ pub enum RetirementRejectionReason {
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct RetirementRejection {
-    pub engine: signal_persona_auth::EngineId,
+    pub engine: signal_persona_origin::EngineIdentifier,
     pub reason: RetirementRejectionReason,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct EngineCatalogEntry {
-    pub engine: signal_persona_auth::EngineId,
+    pub engine: signal_persona_origin::EngineIdentifier,
     pub label: EngineLabel,
     pub phase: EnginePhase,
 }
@@ -262,7 +262,7 @@ pub mod engine {
         channel Engine {
             operation Launch(EngineLaunch),
             operation Query(Query),
-            operation Retire(signal_persona_auth::EngineId),
+            operation Retire(signal_persona_origin::EngineIdentifier),
             operation Start(ComponentStartup),
             operation Stop(ComponentShutdown),
         }
@@ -273,7 +273,7 @@ pub mod engine {
             EngineStatus(EngineStatus),
             ComponentStatus(ComponentStatus),
             ComponentMissing(ComponentName),
-            Retired(signal_persona_auth::EngineId),
+            Retired(signal_persona_origin::EngineIdentifier),
             RetireRejected(RetirementRejection),
             ActionAccepted(ActionAcceptance),
             ActionRejected(ActionRejection),
@@ -458,16 +458,16 @@ pub struct EngineManagementUnimplemented {
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct PeerSocket {
-    pub component_name: signal_persona_auth::ComponentName,
+    pub component_name: signal_persona_origin::ComponentName,
     pub domain_socket_path: WirePath,
 }
 
 #[derive(Archive, RkyvSerialize, RkyvDeserialize, NotaRecord, Debug, Clone, PartialEq, Eq)]
 pub struct SpawnEnvelope {
-    pub engine_id: signal_persona_auth::EngineId,
+    pub engine_identifier: signal_persona_origin::EngineIdentifier,
     pub component_kind: ComponentKind,
-    pub component_name: signal_persona_auth::ComponentName,
-    pub owner_identity: signal_persona_auth::OwnerIdentity,
+    pub component_name: signal_persona_origin::ComponentName,
+    pub owner_identity: signal_persona_origin::OwnerIdentity,
     pub state_dir: WirePath,
     pub domain_socket_path: WirePath,
     pub domain_socket_mode: SocketMode,

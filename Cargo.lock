@@ -279,14 +279,14 @@ dependencies = [
  "nota-codec",
  "rkyv",
  "signal-frame",
- "signal-persona-auth",
+ "signal-persona-origin",
  "signal-sema",
 ]
 
 [[package]]
-name = "signal-persona-auth"
+name = "signal-persona-origin"
 version = "0.1.0"
-source = "git+https://github.com/LiGoldragon/signal-persona-auth.git#31e994be5fba3b41e71fe4fa63adb73fe8cb400f"
+source = "git+https://github.com/LiGoldragon/signal-persona-origin.git#2e949ed0064f2c0ecc1c8f6e4bb9eba8300858bb"
 dependencies = [
  "nota-codec",
  "rkyv",

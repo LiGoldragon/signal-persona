@@ -5,11 +5,11 @@ use signal_persona::{
 
 fn fixture_spawn_envelope() -> SpawnEnvelope {
     SpawnEnvelope {
-        engine_id: signal_persona_auth::EngineId::new("default"),
+        engine_identifier: signal_persona_origin::EngineIdentifier::new("default"),
         component_kind: ComponentKind::Message,
-        component_name: signal_persona_auth::ComponentName::Message,
-        owner_identity: signal_persona_auth::OwnerIdentity::UnixUser(
-            signal_persona_auth::UnixUserId::new(1001),
+        component_name: signal_persona_origin::ComponentName::Message,
+        owner_identity: signal_persona_origin::OwnerIdentity::UnixUser(
+            signal_persona_origin::UnixUserId::new(1001),
         ),
         state_dir: WirePath::new("/var/lib/persona/default/message"),
         domain_socket_path: WirePath::new("/var/run/persona/default/message.sock"),
@@ -19,7 +19,7 @@ fn fixture_spawn_envelope() -> SpawnEnvelope {
         ),
         engine_management_socket_mode: SocketMode::new(0o600),
         peer_sockets: vec![PeerSocket {
-            component_name: signal_persona_auth::ComponentName::Router,
+            component_name: signal_persona_origin::ComponentName::Router,
             domain_socket_path: WirePath::new("/var/run/persona/default/router.sock"),
         }],
         manager_socket: WirePath::new("/var/run/persona/default/persona.sock"),
@@ -51,11 +51,11 @@ fn spawn_envelope_carries_closed_component_principals() {
 
     assert_eq!(
         envelope.component_name,
-        signal_persona_auth::ComponentName::Message
+        signal_persona_origin::ComponentName::Message
     );
     assert_eq!(
         envelope.peer_sockets[0].component_name,
-        signal_persona_auth::ComponentName::Router
+        signal_persona_origin::ComponentName::Router
     );
 }
 

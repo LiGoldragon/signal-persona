@@ -101,7 +101,7 @@ relation.
 - **Requests carry no caller identity, class, proof, sender,
   timestamp, or minted engine id.** Per ESSENCE §"Infrastructure
   mints identity, time, and sender" — boundary facts live in
-  `signal-persona-auth` ingress context, not in request payloads.
+  `signal-persona-origin` ingress context, not in request payloads.
 - **No runtime code.** No daemons, actors, tokio loops, redb stores,
   terminal adapters, or CLI parsing in this crate.
 - **Round trips cover every variant.** rkyv length-prefixed frame
@@ -161,5 +161,5 @@ round-trip tests use the payload heads.
 - this workspace's `ESSENCE.md` §"Perfect specificity at
   boundaries" and §"Infrastructure mints identity, time, and
   sender" — the rules that shape this contract.
-- `signal-persona-auth`'s ARCHITECTURE.md — provenance and ingress
+- `signal-persona-origin`'s ARCHITECTURE.md — provenance and ingress
   context vocabulary that this contract does not redefine.
