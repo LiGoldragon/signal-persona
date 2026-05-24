@@ -8,7 +8,7 @@ authority boundary.
 | Repository | Authority Boundary |
 |---|---|
 | `owner-signal-persona` | owner-only Persona engine-manager commands: launch, retire, start, stop, status query |
-| `signal-persona-engine-management` | ordinary manager-to-supervised-component lifecycle traffic: announce, readiness, health, graceful stop, spawn envelope |
+| `signal-engine-management` | ordinary manager-to-supervised-component lifecycle traffic: announce, readiness, health, graceful stop, spawn envelope |
 
 New code depends on one of those repositories directly. This crate only
 re-exports enough names to keep older consumers compiling while the workspace
