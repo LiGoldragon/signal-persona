@@ -1,39 +1,39 @@
 # signal-persona — Architecture
 
-`signal-persona` is a retired compatibility shim. It no longer owns an
-authority boundary.
+`signal-persona` is the **ordinary working-signal contract for Persona** — the
+`signal-<component>` half of Persona's contract pair. It is canonical, not a
+shim.
 
-## Replacement Repositories
+## Invariant — two contracts per component
 
-| Repository | Authority Boundary |
+Every component has exactly two contracts: `signal-<component>` (ordinary
+working signal) and `meta-signal-<component>` (meta policy signal). There is no
+third contract and no `owner-signal-*` channel. For Persona:
+
+| Repository | Role |
 |---|---|
-| `owner-signal-persona` | owner-only Persona engine-manager commands: launch, retire, start, stop, status query |
-| `signal-engine-management` | ordinary manager-to-supervised-component lifecycle traffic: announce, readiness, health, graceful stop, spawn envelope |
+| `signal-persona` (this repo) | ordinary working signal — engine-management lifecycle traffic: announce, readiness, health, graceful stop, the typed `SpawnEnvelope` |
+| `meta-signal-persona` | meta policy signal — privileged surface: engine launch, retirement, component start/stop, status policy |
 
-New code depends on one of those repositories directly. This crate only
-re-exports enough names to keep older consumers compiling while the workspace
-is migrated.
+Per psyche 2026-06-07 (Spirit `n0ss`).
 
-## Invariant
+## Deviations being retired into this pair
 
-The previous two-channel exception is closed. Persona follows the normal triad
-shape: owner authority lives in an `owner-signal-*` repo, and ordinary working
-traffic lives in a `signal-*` repo.
+The earlier framing split Persona into three crates and labelled this one a
+"retired compatibility shim." That was wrong. The deviations:
+
+- `owner-signal-persona` — the deprecated **OwnerSignal** form (OwnerSignal →
+  MetaSignal, Spirit `hnpo`). Its privileged surface folds into
+  `meta-signal-persona`.
+- `signal-engine-management` — an off-pattern name (not `signal-<component>`).
+  Its ordinary lifecycle surface folds into this crate.
+
+`meta-signal-persona` does not exist yet; creating it (and retiring the two
+deviation crates into the canonical pair) is the open Persona contract work.
 
 ## Pending schema-engine upgrade
 
-**Status:** scheduled for migration to schema-language-based contract per `reports/designer/326-v13-spirit-complete-schema-vision.md` + `reports/designer/324-migration-mvp-spirit-handover-re-specification.md`.
-
-**Target:** Persona's wire contract — what survives of it after the retirement carve-out — converts to a single `persona/persona.schema` file consumed by the brilliant macro library (`primary-ezqx.1`). The macro emits wire types, ShortHeader projection, dispatcher, VersionProjection, and storage descriptors from one source.
-
-**Sequence:** Spirit is the MVP pilot landing first via `primary-ezqx.1`; this contract's schema cutover follows the persona daemon's schema cutover. Because this crate is a retired compatibility shim, the cutover may simply remove the remaining re-exports rather than re-emit them through the macro pipeline; the substantive Persona wire surface is now `owner-signal-persona` + `signal-engine-management` (each gets its own per-component cutover bead). Post-/318 the AttemptHandover verb has been shed from the Persona surface; the upgrade triad owns that vocabulary.
-
-**Per-component concerns:**
-- This crate is a retired compatibility shim (per the §"Replacement Repositories" table above); the schema-engine cutover for the Persona wire surface lands in `owner-signal-persona` and `signal-engine-management`, not here.
-- The retirement timeline may obsolete this crate before its own schema cutover; in that case the bead deletes the crate rather than rewrites it.
-
-**References:**
-- `reports/designer/326-v13-spirit-complete-schema-vision.md` — uniform header form + schema-language design
-- `reports/designer/324-migration-mvp-spirit-handover-re-specification.md` — migration MVP + handover state
-- `reports/designer/322-spirit-mvp-positional-schema-worked-example.md` — Spirit MVP worked example
-- `reports/operator/174-schema-import-header-design-critique-2026-05-24.md` — header/body/feature separation + lowering rules
+Persona's wire contract migrates to a schema-language source consumed by the
+schema-derived emission stack (`schema-next` / `schema-rust-next`), like the
+spirit pilot — the contract's Rust is regenerated from its `.schema`, not
+hand-written. This crate's cutover follows the persona daemon's.
