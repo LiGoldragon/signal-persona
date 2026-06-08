@@ -14,19 +14,7 @@ pub use signal_frame::{
     Request as FrameRequest, SIGNAL_FRAME_PROTOCOL_VERSION,
 };
 
-/// Persona origin-context provenance vocabulary, re-exported as the canonical
-/// home for the typed identity and origin records the Persona triad consumes.
-/// The records still live in `signal-persona-origin`; this crate is their
-/// single import surface so every component reaches them through the
-/// `signal-persona` / `meta-signal-persona` contract pair rather than depending
-/// on the origin crate directly.
-pub mod origin {
-    pub use signal_persona_origin::{
-        ChannelIdentifier, ComponentInstanceName, ComponentName, ConnectionClass, EngineIdentifier,
-        HostName, IngressContext, InternalComponentInstanceOrigin, MessageOrigin, NetworkPeer,
-        OwnerIdentity, RouteIdentifier, SystemPrincipal, UnixUserIdentifier,
-    };
-}
+pub mod origin;
 
 #[derive(
     Archive,
@@ -365,7 +353,7 @@ pub type EngineManagementUnimplementedReason = UnimplementedReason;
     Archive, RkyvSerialize, RkyvDeserialize, NotaEncode, NotaDecode, Debug, Clone, PartialEq, Eq,
 )]
 pub struct PeerSocket {
-    pub component_name: signal_persona_origin::ComponentName,
+    pub component_name: crate::origin::ComponentName,
     pub domain_socket_path: WirePath,
 }
 
@@ -373,10 +361,10 @@ pub struct PeerSocket {
     Archive, RkyvSerialize, RkyvDeserialize, NotaEncode, NotaDecode, Debug, Clone, PartialEq, Eq,
 )]
 pub struct SpawnEnvelope {
-    pub engine_identifier: signal_persona_origin::EngineIdentifier,
+    pub engine_identifier: crate::origin::EngineIdentifier,
     pub component_kind: ComponentKind,
-    pub component_name: signal_persona_origin::ComponentName,
-    pub owner_identity: signal_persona_origin::OwnerIdentity,
+    pub component_name: crate::origin::ComponentName,
+    pub owner_identity: crate::origin::OwnerIdentity,
     pub state_dir: WirePath,
     pub domain_socket_path: WirePath,
     pub domain_socket_mode: SocketMode,

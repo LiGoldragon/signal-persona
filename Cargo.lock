@@ -279,16 +279,6 @@ dependencies = [
  "nota-next",
  "rkyv",
  "signal-frame",
- "signal-persona-origin",
-]
-
-[[package]]
-name = "signal-persona-origin"
-version = "0.1.0"
-source = "git+https://github.com/LiGoldragon/signal-persona-origin.git?branch=main#da2bee2e1a178f24a62d1eb5d3985e3937a79b5b"
-dependencies = [
- "nota-next",
- "rkyv",
 ]
 
 [[package]]
