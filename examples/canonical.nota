@@ -1,2 +1,11 @@
-;; signal-persona is retired as an authority-owning contract.
-;; Use owner-signal-persona and signal-engine-management examples.
+;; Canonical NOTA examples for signal-persona ordinary lifecycle traffic.
+
+(Announce ([persona-router] Router 1))
+(Query (ReadinessStatus [persona-router]))
+(Query (HealthStatus [persona-router]))
+(Stop [persona-router])
+
+(Announced [persona-router])
+(Ready [persona-router])
+(Health ([persona-router] Router Running Running))
+(Stopped [persona-router])

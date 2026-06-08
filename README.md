@@ -13,7 +13,6 @@ component start/stop) belongs in `meta-signal-persona`.
 
 > Note: `signal-persona` is **not** a retired shim. The earlier framing that
 > split Persona into `owner-signal-persona` + `signal-engine-management` was a
-> deviation from the two-contract invariant. `owner-signal-persona` is the
-> deprecated OwnerSignal form (OwnerSignal → MetaSignal); its surface folds into
-> `meta-signal-persona`, and `signal-engine-management` folds into this crate.
+> deviation from the two-contract invariant. The privileged surface is now
+> `meta-signal-persona`; this crate exposes the ordinary lifecycle surface.
 > Per psyche 2026-06-07 (Spirit `n0ss`).

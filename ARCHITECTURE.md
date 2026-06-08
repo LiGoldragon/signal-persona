@@ -26,10 +26,11 @@ The earlier framing split Persona into three crates and labelled this one a
   MetaSignal, Spirit `hnpo`). Its privileged surface folds into
   `meta-signal-persona`.
 - `signal-engine-management` — an off-pattern name (not `signal-<component>`).
-  Its ordinary lifecycle surface folds into this crate.
+  Its ordinary lifecycle surface is exposed here while the generated schema
+  source moves into this repository.
 
-`meta-signal-persona` does not exist yet; creating it (and retiring the two
-deviation crates into the canonical pair) is the open Persona contract work.
+`meta-signal-persona` exists and carries the privileged policy surface. This
+repo is the ordinary side of the pair.
 
 ## Pending schema-engine upgrade
 

@@ -1,22 +1,22 @@
-use signal_persona::engine as owner;
-use signal_persona::engine_management as management;
+use signal_persona as contract;
 
 #[test]
-fn shim_points_engine_module_to_owner_contract() {
-    let operation = owner::Operation::Launch(owner::EngineLaunch {
-        label: owner::EngineLabel::new("prototype"),
+fn signal_persona_exposes_lifecycle_operation_root() {
+    let operation = contract::Operation::Announce(contract::Presence {
+        expected_component: contract::ComponentName::new("persona-router"),
+        expected_kind: contract::ComponentKind::Router,
+        engine_management_protocol_version: contract::EngineManagementProtocolVersion::new(1),
     });
 
-    assert_eq!(operation.kind(), owner::OperationKind::Launch);
+    assert_eq!(operation.kind(), contract::OperationKind::Announce);
 }
 
 #[test]
-fn shim_points_engine_management_module_to_ordinary_contract() {
-    let operation = management::Operation::Announce(management::Presence {
-        expected_component: management::ComponentName::new("persona-router"),
-        expected_kind: management::ComponentKind::Router,
-        engine_management_protocol_version: management::EngineManagementProtocolVersion::new(1),
-    });
+fn signal_persona_exposes_spawn_envelope_types() {
+    let socket_path = contract::WirePath::new("/run/persona/router/supervision.sock");
+    let socket_mode = contract::SocketMode::new(0o600);
 
-    assert_eq!(operation.kind(), management::OperationKind::Announce);
+    assert_eq!(socket_path.as_str(), "/run/persona/router/supervision.sock");
+    assert_eq!(socket_mode.into_u32(), 0o600);
+    assert!(std::mem::size_of::<contract::SpawnEnvelope>() > 0);
 }

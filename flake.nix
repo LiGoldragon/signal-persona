@@ -1,5 +1,5 @@
 {
-  description = "Retired compatibility shim for the former combined Persona signal contract.";
+  description = "signal-persona - ordinary Persona lifecycle signal contract.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
@@ -46,6 +46,20 @@
             // {
               inherit cargoArtifacts;
               cargoTestExtraArgs = "--test shim";
+            }
+          );
+          test-round-trip = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test round_trip";
+            }
+          );
+          test-spawn-envelope = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test spawn_envelope";
             }
           );
           test-doc = craneLib.cargoTest (
