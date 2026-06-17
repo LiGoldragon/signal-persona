@@ -1,32 +1,34 @@
+#[cfg(feature = "nota-text")]
 use nota_next::{NotaEncode, NotaSource};
 use signal_persona::{
-    ComponentKind, EngineManagementProtocolVersion, PeerSocket, SocketMode, SpawnEnvelope, WirePath,
+    ComponentKind, ComponentPrincipal, DomainSocketMode, DomainSocketPath, EngineIdentifier,
+    EngineManagementProtocolVersion, EngineManagementSocketMode, EngineManagementSocketPath,
+    ManagerSocketPath, OwnerIdentity, PeerSocket, SpawnEnvelope, StateDirectoryPath,
 };
 
 fn fixture_spawn_envelope() -> SpawnEnvelope {
     SpawnEnvelope {
-        engine_identifier: signal_persona::origin::EngineIdentifier::new("default"),
+        engine_identifier: EngineIdentifier::new("default"),
         component_kind: ComponentKind::Message,
-        component_name: signal_persona::origin::ComponentName::Message,
-        owner_identity: signal_persona::origin::OwnerIdentity::UnixUser(
-            signal_persona::origin::UnixUserIdentifier::new(1001),
-        ),
-        state_dir: WirePath::new("/var/lib/persona/default/message"),
-        domain_socket_path: WirePath::new("/var/run/persona/default/message.sock"),
-        domain_socket_mode: SocketMode::new(0o660),
-        engine_management_socket_path: WirePath::new(
+        component: ComponentPrincipal::Message,
+        owner_identity: OwnerIdentity::unix_user(1001),
+        state_directory_path: StateDirectoryPath::new("/var/lib/persona/default/message"),
+        domain_socket_path: DomainSocketPath::new("/var/run/persona/default/message.sock"),
+        domain_socket_mode: DomainSocketMode::new(0o660),
+        engine_management_socket_path: EngineManagementSocketPath::new(
             "/var/run/persona/default/message.engine_management.sock",
         ),
-        engine_management_socket_mode: SocketMode::new(0o600),
+        engine_management_socket_mode: EngineManagementSocketMode::new(0o600),
         peer_sockets: vec![PeerSocket {
-            component_name: signal_persona::origin::ComponentName::Router,
-            domain_socket_path: WirePath::new("/var/run/persona/default/router.sock"),
+            component: ComponentPrincipal::Router,
+            domain_socket_path: DomainSocketPath::new("/var/run/persona/default/router.sock"),
         }],
-        manager_socket: WirePath::new("/var/run/persona/default/persona.sock"),
+        manager_socket_path: ManagerSocketPath::new("/var/run/persona/default/persona.sock"),
         engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
     }
 }
 
+#[cfg(feature = "nota-text")]
 #[test]
 fn spawn_envelope_round_trips_through_nota_text() {
     let envelope = fixture_spawn_envelope();
@@ -46,13 +48,10 @@ fn spawn_envelope_round_trips_through_nota_text() {
 fn spawn_envelope_carries_closed_component_principals() {
     let envelope = fixture_spawn_envelope();
 
+    assert_eq!(envelope.component, ComponentPrincipal::Message);
     assert_eq!(
-        envelope.component_name,
-        signal_persona::origin::ComponentName::Message
-    );
-    assert_eq!(
-        envelope.peer_sockets[0].component_name,
-        signal_persona::origin::ComponentName::Router
+        envelope.peer_sockets[0].component,
+        ComponentPrincipal::Router
     );
 }
 
@@ -61,13 +60,13 @@ fn spawn_envelope_separates_domain_and_engine_management_sockets() {
     let envelope = fixture_spawn_envelope();
 
     assert_eq!(
-        envelope.domain_socket_path.as_str(),
+        envelope.domain_socket_path.as_ref(),
         "/var/run/persona/default/message.sock"
     );
-    assert_eq!(envelope.domain_socket_mode.into_u32(), 0o660);
+    assert_eq!(*envelope.domain_socket_mode.payload(), 0o660);
     assert_eq!(
-        envelope.engine_management_socket_path.as_str(),
+        envelope.engine_management_socket_path.as_ref(),
         "/var/run/persona/default/message.engine_management.sock"
     );
-    assert_eq!(envelope.engine_management_socket_mode.into_u32(), 0o600);
+    assert_eq!(*envelope.engine_management_socket_mode.payload(), 0o600);
 }

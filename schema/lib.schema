@@ -1,0 +1,91 @@
+;; signal-persona — ordinary working wire contract for the Persona engine
+;; manager lifecycle relation.
+;;
+;; Wire-only: emits rkyv + optional NOTA codecs, route witnesses, short
+;; headers, and signal-frame helpers. Runtime supervision, process spawning,
+;; socket binding, persistence, and policy live in the persona daemon.
+;; Privileged policy commands live in meta-signal-persona.
+
+[Announce Query Stop]
+[Identified Ready NotReady HealthReport StopAcknowledged Unimplemented]
+{
+  Announce Presence
+  Query LifecycleQuery
+  Stop ComponentName
+
+  Identified ComponentIdentity
+  Ready ComponentReady
+  NotReady ComponentNotReady
+  HealthReport ComponentHealthReport
+  StopAcknowledged StopAcknowledgement
+  Unimplemented RequestUnimplemented
+
+  ComponentName String
+  EngineIdentifier String
+  ChannelIdentifier String
+  ComponentInstanceName String
+  HostName String
+  SystemPrincipal String
+  UnixUserIdentifier u64
+  NetworkPeer String
+
+  ComponentKind [Mind Router Message System Harness Terminal Introspect Orchestrate Spirit]
+  ComponentPrincipal [Mind Message Router Terminal Harness System Introspect Orchestrate Spirit]
+  ComponentHealth [Starting Running Degraded Stopped Failed]
+  ComponentDesiredState [Running Stopped]
+  ComponentStatus { name ComponentName kind ComponentKind desired_state ComponentDesiredState health ComponentHealth }
+
+  EngineManagementProtocolVersion u64
+  StateDirectoryPath String
+  DomainSocketPath String
+  EngineManagementSocketPath String
+  ManagerSocketPath String
+  DomainSocketMode u64
+  EngineManagementSocketMode u64
+  TimestampNanoseconds u64
+
+  ComponentStartupError [SocketBindFailed StoreOpenFailed EnvelopeIncomplete]
+  ComponentNotReadyReason [NotYetBound AwaitingDependency RecoveringFromCrash]
+  Presence { expected_component ComponentName expected_kind ComponentKind engine_management_protocol_version EngineManagementProtocolVersion }
+  ComponentIdentity { name ComponentName kind ComponentKind engine_management_protocol_version EngineManagementProtocolVersion last_fatal_startup_error (Optional ComponentStartupError) }
+  ComponentReady { component_started_at (Optional TimestampNanoseconds) }
+  ComponentNotReady { reason ComponentNotReadyReason }
+  ComponentHealthReport { health ComponentHealth }
+  StopAcknowledgement { drain_completed_at (Optional TimestampNanoseconds) }
+
+  DependencyKind [PeerComponent]
+  ResourceKind [ManagerSocket SocketPath StateDirectory]
+  UnimplementedReason [NotInPrototypeScope (DependencyMissing DependencyKind) (ResourceUnavailable ResourceKind)]
+  RequestUnimplemented { reason UnimplementedReason }
+
+  OwnerIdentity [(UnixUser UnixUserIdentifier) (System SystemPrincipal)]
+  OtherPersonaEngine { engine_identifier EngineIdentifier host HostName }
+  ConnectionClass [Owner (NonOwnerUser UnixUserIdentifier) (System SystemPrincipal) (OtherPersona OtherPersonaEngine) (Network NetworkPeer)]
+  InternalComponentInstanceOrigin { component ComponentPrincipal instance ComponentInstanceName }
+  MessageOrigin [
+    (LocalOwner OwnerIdentity)
+    (LocalConnection ConnectionClass)
+    (Internal ComponentPrincipal)
+    (InternalComponentInstance InternalComponentInstanceOrigin)
+    (Channel ChannelIdentifier)
+  ]
+  IngressContext { origin MessageOrigin }
+
+  PeerSocket { component ComponentPrincipal domain_socket_path DomainSocketPath }
+  SpawnEnvelope {
+    engine_identifier EngineIdentifier
+    component_kind ComponentKind
+    component ComponentPrincipal
+    owner_identity OwnerIdentity
+    state_directory_path StateDirectoryPath
+    domain_socket_path DomainSocketPath
+    domain_socket_mode DomainSocketMode
+    engine_management_socket_path EngineManagementSocketPath
+    engine_management_socket_mode EngineManagementSocketMode
+    peer_sockets (Vector PeerSocket)
+    manager_socket_path ManagerSocketPath
+    engine_management_protocol_version EngineManagementProtocolVersion
+  }
+
+  LifecycleQuery [(ReadinessStatus ComponentName) (HealthStatus ComponentName)]
+}

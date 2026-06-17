@@ -1,8 +1,8 @@
 # skills — signal-persona
 
-This repository is the ordinary Persona working-signal contract. It exposes
-manager-to-supervised-component lifecycle traffic: announce, readiness, health,
-graceful stop, and the typed `SpawnEnvelope`.
+This repository is the schema-derived ordinary Persona working-signal contract.
+It exposes manager-to-supervised-component lifecycle traffic: announce,
+readiness, health, graceful stop, and the typed `SpawnEnvelope`.
 
 The Persona contract pair is:
 
@@ -11,3 +11,7 @@ The Persona contract pair is:
 
 Do not add privileged policy payloads here. Add those to
 `meta-signal-persona`.
+
+Edit `schema/lib.schema`, then regenerate checked-in artifacts with
+`SIGNAL_PERSONA_UPDATE_SCHEMA_ARTIFACTS=1 cargo build --all-features`.
+Generated Rust lives in `src/schema/lib.rs`; do not hand-edit it.

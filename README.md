@@ -11,6 +11,10 @@ This carries the ordinary Persona engine-management lifecycle traffic
 `SpawnEnvelope`). The privileged policy surface (engine launch, retirement,
 component start/stop) belongs in `meta-signal-persona`.
 
+The contract is generated from `schema/lib.schema`; refresh the checked-in
+artifact with `SIGNAL_PERSONA_UPDATE_SCHEMA_ARTIFACTS=1 cargo build
+--all-features`.
+
 > Note: `signal-persona` is **not** a retired shim. The earlier framing that
 > split Persona into `owner-signal-persona` + `signal-engine-management` was a
 > deviation from the two-contract invariant. The privileged surface is now

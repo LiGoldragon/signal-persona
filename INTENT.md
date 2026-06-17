@@ -23,14 +23,15 @@ Persona, the pair is `signal-persona` and `meta-signal-persona`.
 
 ## Channel shape
 
-The ordinary lifecycle surface currently reuses the typed records from
-`signal-engine-management` while that off-pattern crate is retired into this
-repository. The public surface is exposed from `signal-persona` as:
+The ordinary lifecycle surface is schema-derived from `schema/lib.schema`.
+The public surface is exposed from `signal-persona` as:
 
-- `Operation` / `OperationKind` / `Reply` for lifecycle requests and replies;
+- generated `Input` / `InputRoute` / `Output` for lifecycle requests and
+  replies, with `Operation` / `OperationKind` / `Reply` aliases for the
+  ordinary lifecycle relation;
 - `Presence`, readiness, health, and stop payloads;
-- `SpawnEnvelope`, `PeerSocket`, `WirePath`, and `SocketMode` for supervised
-  component startup.
+- `SpawnEnvelope`, `PeerSocket`, and role-specific path/mode newtypes for
+  supervised component startup.
 
 ## Constraints
 
@@ -39,8 +40,9 @@ repository. The public surface is exposed from `signal-persona` as:
 - Request payloads do not carry caller identity, timestamps, or authorization
   proof; those facts are infrastructure-owned.
 - Wire enums are closed. No `Unknown` escape hatch.
-- This crate carries only typed wire vocabulary and round-trip witnesses: no
-  daemon actors, persistence, process spawning, socket policy, or CLI parsing.
+- This crate carries only schema-derived typed wire vocabulary and round-trip
+  witnesses: no daemon actors, persistence, process spawning, socket policy, or
+  CLI parsing.
 
 ## See also
 

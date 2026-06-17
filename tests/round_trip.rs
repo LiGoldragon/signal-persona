@@ -1,13 +1,16 @@
+#[cfg(feature = "nota-text")]
 use nota_next::{NotaDecode, NotaEncode, NotaSource};
 use signal_frame::{
     ExchangeIdentifier, ExchangeLane, LaneSequence, NonEmpty, Reply as FrameReply, RequestPayload,
     SessionEpoch, SubReply,
 };
+#[cfg(feature = "nota-text")]
+use signal_persona::ComponentStartupError;
 use signal_persona::{
     ComponentHealth, ComponentHealthReport, ComponentIdentity, ComponentKind, ComponentName,
-    ComponentNotReady, ComponentNotReadyReason, ComponentReady, ComponentStartupError,
-    EngineManagementProtocolVersion, Frame, FrameBody, Operation, OperationKind, Presence, Query,
-    Reply, RequestUnimplemented, StopAcknowledgement, TimestampNanos, UnimplementedReason,
+    ComponentNotReady, ComponentNotReadyReason, ComponentReady, EngineManagementProtocolVersion,
+    Frame, FrameBody, Operation, OperationKind, Presence, Query, Reply, RequestUnimplemented,
+    StopAcknowledgement, TimestampNanos, UnimplementedReason,
 };
 
 fn exchange() -> ExchangeIdentifier {
@@ -26,6 +29,7 @@ fn router_name() -> ComponentName {
     ComponentName::new("persona-router")
 }
 
+#[cfg(feature = "nota-text")]
 fn round_trip_nota<Value>(value: Value, expected: &str)
 where
     Value: NotaEncode + NotaDecode + PartialEq + std::fmt::Debug,
@@ -72,49 +76,47 @@ fn round_trip_reply(reply: Reply) -> Reply {
 
 #[test]
 fn operations_round_trip_through_length_prefixed_frames() {
-    let announce = Operation::Announce(Presence {
-        expected_component: router_name(),
-        expected_kind: ComponentKind::Router,
-        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-    });
+    let announce = Operation::Announce(
+        Presence {
+            expected_component: router_name(),
+            expected_kind: ComponentKind::Router,
+            engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
+        }
+        .into(),
+    );
     assert_eq!(round_trip_operation(announce.clone()), announce);
 
     for query in [
         Query::ReadinessStatus(router_name()),
         Query::HealthStatus(router_name()),
     ] {
-        let operation = Operation::Query(query);
+        let operation = Operation::Query(query.into());
         assert_eq!(round_trip_operation(operation.clone()), operation);
     }
 
-    let stop = Operation::Stop(router_name());
+    let stop = Operation::Stop(router_name().into());
     assert_eq!(round_trip_operation(stop.clone()), stop);
 }
 
 #[test]
 fn replies_round_trip_through_length_prefixed_frames() {
     let replies = [
-        Reply::Identified(ComponentIdentity {
-            name: router_name(),
-            kind: ComponentKind::Router,
-            engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-            last_fatal_startup_error: None,
-        }),
-        Reply::Ready(ComponentReady {
-            component_started_at: Some(TimestampNanos::new(100)),
-        }),
-        Reply::NotReady(ComponentNotReady {
-            reason: ComponentNotReadyReason::AwaitingDependency,
-        }),
-        Reply::HealthReport(ComponentHealthReport {
-            health: ComponentHealth::Running,
-        }),
-        Reply::StopAcknowledged(StopAcknowledgement {
-            drain_completed_at: Some(TimestampNanos::new(200)),
-        }),
-        Reply::Unimplemented(RequestUnimplemented {
-            reason: UnimplementedReason::NotInPrototypeScope,
-        }),
+        Reply::Identified(
+            ComponentIdentity {
+                name: router_name(),
+                kind: ComponentKind::Router,
+                engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
+                last_fatal_startup_error: None,
+            }
+            .into(),
+        ),
+        Reply::Ready(ComponentReady::new(Some(TimestampNanos::new(100))).into()),
+        Reply::NotReady(ComponentNotReady::new(ComponentNotReadyReason::AwaitingDependency).into()),
+        Reply::HealthReport(ComponentHealthReport::new(ComponentHealth::Running).into()),
+        Reply::StopAcknowledged(StopAcknowledgement::new(Some(TimestampNanos::new(200))).into()),
+        Reply::Unimplemented(
+            RequestUnimplemented::new(UnimplementedReason::NotInPrototypeScope).into(),
+        ),
     ];
 
     for reply in replies {
@@ -122,21 +124,28 @@ fn replies_round_trip_through_length_prefixed_frames() {
     }
 }
 
+#[cfg(feature = "nota-text")]
 #[test]
 fn nota_text_shape_stays_canonical() {
-    let operation = Operation::Announce(Presence {
-        expected_component: router_name(),
-        expected_kind: ComponentKind::Router,
-        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-    });
+    let operation = Operation::Announce(
+        Presence {
+            expected_component: router_name(),
+            expected_kind: ComponentKind::Router,
+            engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
+        }
+        .into(),
+    );
     round_trip_nota(operation, "(Announce (persona-router Router 1))");
 
-    let reply = Reply::Identified(ComponentIdentity {
-        name: router_name(),
-        kind: ComponentKind::Router,
-        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-        last_fatal_startup_error: Some(ComponentStartupError::StoreOpenFailed),
-    });
+    let reply = Reply::Identified(
+        ComponentIdentity {
+            name: router_name(),
+            kind: ComponentKind::Router,
+            engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
+            last_fatal_startup_error: Some(ComponentStartupError::StoreOpenFailed),
+        }
+        .into(),
+    );
     round_trip_nota(
         reply,
         "(Identified (persona-router Router 1 (Some StoreOpenFailed)))",
@@ -147,18 +156,21 @@ fn nota_text_shape_stays_canonical() {
 fn operation_kind_is_generated_by_macro() {
     let cases = [
         (
-            Operation::Announce(Presence {
-                expected_component: router_name(),
-                expected_kind: ComponentKind::Router,
-                engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-            }),
+            Operation::Announce(
+                Presence {
+                    expected_component: router_name(),
+                    expected_kind: ComponentKind::Router,
+                    engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
+                }
+                .into(),
+            ),
             OperationKind::Announce,
         ),
         (
-            Operation::Query(Query::ReadinessStatus(router_name())),
+            Operation::Query(Query::ReadinessStatus(router_name()).into()),
             OperationKind::Query,
         ),
-        (Operation::Stop(router_name()), OperationKind::Stop),
+        (Operation::Stop(router_name().into()), OperationKind::Stop),
     ];
 
     for (operation, expected_kind) in cases {
