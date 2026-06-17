@@ -129,7 +129,7 @@ fn nota_text_shape_stays_canonical() {
         expected_kind: ComponentKind::Router,
         engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
     });
-    round_trip_nota(operation, "(Announce ([persona-router] Router 1))");
+    round_trip_nota(operation, "(Announce (persona-router Router 1))");
 
     let reply = Reply::Identified(ComponentIdentity {
         name: router_name(),
@@ -139,7 +139,7 @@ fn nota_text_shape_stays_canonical() {
     });
     round_trip_nota(
         reply,
-        "(Identified ([persona-router] Router 1 (Some StoreOpenFailed)))",
+        "(Identified (persona-router Router 1 (Some StoreOpenFailed)))",
     );
 }
 
