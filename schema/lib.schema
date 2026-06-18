@@ -33,7 +33,7 @@
   ComponentPrincipal [Mind Message Router Terminal Harness System Introspect Orchestrate Spirit]
   ComponentHealth [Starting Running Degraded Stopped Failed]
   ComponentDesiredState [Running Stopped]
-  ComponentStatus { name.ComponentName kind.ComponentKind desired_state.ComponentDesiredState health.ComponentHealth }
+  ComponentStatus { ComponentName ComponentKind ComponentDesiredState ComponentHealth }
 
   EngineManagementProtocolVersion u64
   StateDirectoryPath String
@@ -46,22 +46,25 @@
 
   ComponentStartupError [SocketBindFailed StoreOpenFailed EnvelopeIncomplete]
   ComponentNotReadyReason [NotYetBound AwaitingDependency RecoveringFromCrash]
-  Presence { expected_component.ComponentName expected_kind.ComponentKind EngineManagementProtocolVersion }
-  ComponentIdentity { name.ComponentName kind.ComponentKind EngineManagementProtocolVersion (LastFatalStartupError (Optional ComponentStartupError)) }
+  ExpectedComponent ComponentName
+  ExpectedKind ComponentKind
+  Presence { ExpectedComponent ExpectedKind EngineManagementProtocolVersion }
+  ComponentIdentity { ComponentName ComponentKind EngineManagementProtocolVersion (LastFatalStartupError (Optional ComponentStartupError)) }
   ComponentReady { (ComponentStartedAt (Optional TimestampNanoseconds)) }
-  ComponentNotReady { reason.ComponentNotReadyReason }
-  ComponentHealthReport { health.ComponentHealth }
+  ComponentNotReady { ComponentNotReadyReason }
+  ComponentHealthReport { ComponentHealth }
   StopAcknowledgement { (DrainCompletedAt (Optional TimestampNanoseconds)) }
 
   DependencyKind [PeerComponent]
   ResourceKind [ManagerSocket SocketPath StateDirectory]
   UnimplementedReason [NotInPrototypeScope (DependencyMissing DependencyKind) (ResourceUnavailable ResourceKind)]
-  RequestUnimplemented { reason.UnimplementedReason }
+  RequestUnimplemented { UnimplementedReason }
 
   OwnerIdentity [(UnixUser UnixUserIdentifier) (System SystemPrincipal)]
-  OtherPersonaEngine { EngineIdentifier host.HostName }
+  Host HostName
+  OtherPersonaEngine { EngineIdentifier Host }
   ConnectionClass [Owner (NonOwnerUser UnixUserIdentifier) (System SystemPrincipal) (OtherPersona OtherPersonaEngine) (Network NetworkPeer)]
-  InternalComponentInstanceOrigin { component.ComponentPrincipal instance.ComponentInstanceName }
+  InternalComponentInstanceOrigin { ComponentPrincipal ComponentInstanceName }
   MessageOrigin [
     (LocalOwner OwnerIdentity)
     (LocalConnection ConnectionClass)
@@ -69,13 +72,13 @@
     (InternalComponentInstance InternalComponentInstanceOrigin)
     (Channel ChannelIdentifier)
   ]
-  IngressContext { origin.MessageOrigin }
+  IngressContext { MessageOrigin }
 
-  PeerSocket { component.ComponentPrincipal DomainSocketPath }
+  PeerSocket { ComponentPrincipal DomainSocketPath }
   SpawnEnvelope {
     EngineIdentifier
     ComponentKind
-    component.ComponentPrincipal
+    ComponentPrincipal
     OwnerIdentity
     StateDirectoryPath
     DomainSocketPath

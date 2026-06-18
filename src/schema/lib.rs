@@ -187,10 +187,10 @@ pub enum ComponentDesiredState {
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct ComponentStatus {
-    pub name: ComponentName,
-    pub kind: ComponentKind,
-    pub desired_state: ComponentDesiredState,
-    pub health: ComponentHealth,
+    pub component_name: ComponentName,
+    pub component_kind: ComponentKind,
+    pub component_desired_state: ComponentDesiredState,
+    pub component_health: ComponentHealth,
 }
 
 #[rustfmt::skip]
@@ -272,9 +272,19 @@ pub enum ComponentNotReadyReason {
 #[rustfmt::skip]
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct ExpectedComponent(ComponentName);
+
+#[rustfmt::skip]
+#[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct ExpectedKind(ComponentKind);
+
+#[rustfmt::skip]
+#[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct Presence {
-    pub expected_component: ComponentName,
-    pub expected_kind: ComponentKind,
+    pub expected_component: ExpectedComponent,
+    pub expected_kind: ExpectedKind,
     pub engine_management_protocol_version: EngineManagementProtocolVersion,
 }
 
@@ -287,8 +297,8 @@ pub(crate) struct LastFatalStartupError(Option<ComponentStartupError>);
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct ComponentIdentity {
-    pub name: ComponentName,
-    pub kind: ComponentKind,
+    pub component_name: ComponentName,
+    pub component_kind: ComponentKind,
     pub engine_management_protocol_version: EngineManagementProtocolVersion,
     pub(crate) last_fatal_startup_error: LastFatalStartupError,
 }
@@ -382,9 +392,14 @@ pub enum OwnerIdentity {
 #[rustfmt::skip]
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct Host(HostName);
+
+#[rustfmt::skip]
+#[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct OtherPersonaEngine {
     pub engine_identifier: EngineIdentifier,
-    pub host: HostName,
+    pub host: Host,
 }
 
 #[rustfmt::skip]
@@ -402,8 +417,8 @@ pub enum ConnectionClass {
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct InternalComponentInstanceOrigin {
-    pub component: ComponentPrincipal,
-    pub instance: ComponentInstanceName,
+    pub component_principal: ComponentPrincipal,
+    pub component_instance_name: ComponentInstanceName,
 }
 
 #[rustfmt::skip]
@@ -426,7 +441,7 @@ pub struct IngressContext(MessageOrigin);
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct PeerSocket {
-    pub component: ComponentPrincipal,
+    pub component_principal: ComponentPrincipal,
     pub domain_socket_path: DomainSocketPath,
 }
 
@@ -441,7 +456,7 @@ pub(crate) struct PeerSockets(Vec<PeerSocket>);
 pub struct SpawnEnvelope {
     pub engine_identifier: EngineIdentifier,
     pub component_kind: ComponentKind,
-    pub component: ComponentPrincipal,
+    pub component_principal: ComponentPrincipal,
     pub owner_identity: OwnerIdentity,
     pub state_directory_path: StateDirectoryPath,
     pub domain_socket_path: DomainSocketPath,
@@ -1156,6 +1171,44 @@ impl From<u64> for TimestampNanoseconds {
 }
 
 #[rustfmt::skip]
+impl ExpectedComponent {
+    pub fn new(payload: ComponentName) -> Self {
+        Self(payload)
+    }
+    pub fn payload(&self) -> &ComponentName {
+        &self.0
+    }
+    pub fn into_payload(self) -> ComponentName {
+        self.0
+    }
+}
+#[rustfmt::skip]
+impl From<ComponentName> for ExpectedComponent {
+    fn from(payload: ComponentName) -> Self {
+        Self::new(payload)
+    }
+}
+
+#[rustfmt::skip]
+impl ExpectedKind {
+    pub fn new(payload: ComponentKind) -> Self {
+        Self(payload)
+    }
+    pub fn payload(&self) -> &ComponentKind {
+        &self.0
+    }
+    pub fn into_payload(self) -> ComponentKind {
+        self.0
+    }
+}
+#[rustfmt::skip]
+impl From<ComponentKind> for ExpectedKind {
+    fn from(payload: ComponentKind) -> Self {
+        Self::new(payload)
+    }
+}
+
+#[rustfmt::skip]
 impl LastFatalStartupError {
     pub fn new(payload: Option<ComponentStartupError>) -> Self {
         Self(payload)
@@ -1303,6 +1356,25 @@ impl RequestUnimplemented {
 #[rustfmt::skip]
 impl From<UnimplementedReason> for RequestUnimplemented {
     fn from(payload: UnimplementedReason) -> Self {
+        Self::new(payload)
+    }
+}
+
+#[rustfmt::skip]
+impl Host {
+    pub fn new(payload: HostName) -> Self {
+        Self(payload)
+    }
+    pub fn payload(&self) -> &HostName {
+        &self.0
+    }
+    pub fn into_payload(self) -> HostName {
+        self.0
+    }
+}
+#[rustfmt::skip]
+impl From<HostName> for Host {
+    fn from(payload: HostName) -> Self {
         Self::new(payload)
     }
 }

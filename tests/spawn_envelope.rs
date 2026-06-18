@@ -18,7 +18,7 @@ fn fixture_spawn_envelope() -> SpawnEnvelope {
         EngineManagementSocketPath::new("/var/run/persona/default/message.engine_management.sock"),
         EngineManagementSocketMode::new(0o600),
         vec![PeerSocket {
-            component: ComponentPrincipal::Router,
+            component_principal: ComponentPrincipal::Router,
             domain_socket_path: DomainSocketPath::new("/var/run/persona/default/router.sock"),
         }],
         ManagerSocketPath::new("/var/run/persona/default/persona.sock"),
@@ -46,9 +46,9 @@ fn spawn_envelope_round_trips_through_nota_text() {
 fn spawn_envelope_carries_closed_component_principals() {
     let envelope = fixture_spawn_envelope();
 
-    assert_eq!(envelope.component, ComponentPrincipal::Message);
+    assert_eq!(envelope.component_principal, ComponentPrincipal::Message);
     assert_eq!(
-        envelope.peer_sockets()[0].component,
+        envelope.peer_sockets()[0].component_principal,
         ComponentPrincipal::Router
     );
 }

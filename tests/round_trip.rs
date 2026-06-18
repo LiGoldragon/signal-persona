@@ -78,8 +78,8 @@ fn round_trip_reply(reply: Reply) -> Reply {
 fn operations_round_trip_through_length_prefixed_frames() {
     let announce = Operation::Announce(
         Presence {
-            expected_component: router_name(),
-            expected_kind: ComponentKind::Router,
+            expected_component: router_name().into(),
+            expected_kind: ComponentKind::Router.into(),
             engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
         }
         .into(),
@@ -131,8 +131,8 @@ fn replies_round_trip_through_length_prefixed_frames() {
 fn nota_text_shape_stays_canonical() {
     let operation = Operation::Announce(
         Presence {
-            expected_component: router_name(),
-            expected_kind: ComponentKind::Router,
+            expected_component: router_name().into(),
+            expected_kind: ComponentKind::Router.into(),
             engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
         }
         .into(),
@@ -160,8 +160,8 @@ fn operation_kind_is_generated_by_macro() {
         (
             Operation::Announce(
                 Presence {
-                    expected_component: router_name(),
-                    expected_kind: ComponentKind::Router,
+                    expected_component: router_name().into(),
+                    expected_kind: ComponentKind::Router.into(),
                     engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
                 }
                 .into(),

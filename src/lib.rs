@@ -22,14 +22,14 @@ pub type EngineManagementUnimplementedReason = UnimplementedReason;
 
 impl ComponentIdentity {
     pub fn new(
-        name: ComponentName,
-        kind: ComponentKind,
+        component_name: ComponentName,
+        component_kind: ComponentKind,
         engine_management_protocol_version: EngineManagementProtocolVersion,
         last_fatal_startup_error: Option<ComponentStartupError>,
     ) -> Self {
         Self {
-            name,
-            kind,
+            component_name,
+            component_kind,
             engine_management_protocol_version,
             last_fatal_startup_error: LastFatalStartupError::new(last_fatal_startup_error),
         }
@@ -57,7 +57,7 @@ impl SpawnEnvelope {
     pub fn new(
         engine_identifier: EngineIdentifier,
         component_kind: ComponentKind,
-        component: ComponentPrincipal,
+        component_principal: ComponentPrincipal,
         owner_identity: OwnerIdentity,
         state_directory_path: StateDirectoryPath,
         domain_socket_path: DomainSocketPath,
@@ -71,7 +71,7 @@ impl SpawnEnvelope {
         Self {
             engine_identifier,
             component_kind,
-            component,
+            component_principal,
             owner_identity,
             state_directory_path,
             domain_socket_path,
