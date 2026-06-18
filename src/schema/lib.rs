@@ -281,17 +281,27 @@ pub struct Presence {
 #[rustfmt::skip]
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct LastFatalStartupError(Option<ComponentStartupError>);
+
+#[rustfmt::skip]
+#[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct ComponentIdentity {
     pub name: ComponentName,
     pub kind: ComponentKind,
     pub engine_management_protocol_version: EngineManagementProtocolVersion,
-    pub last_fatal_startup_error: Option<ComponentStartupError>,
+    pub(crate) last_fatal_startup_error: LastFatalStartupError,
 }
 
 #[rustfmt::skip]
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct ComponentReady(Option<TimestampNanoseconds>);
+pub(crate) struct ComponentStartedAt(Option<TimestampNanoseconds>);
+
+#[rustfmt::skip]
+#[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct ComponentReady(ComponentStartedAt);
 
 #[rustfmt::skip]
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
@@ -306,7 +316,12 @@ pub struct ComponentHealthReport(ComponentHealth);
 #[rustfmt::skip]
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
-pub struct StopAcknowledgement(Option<TimestampNanoseconds>);
+pub(crate) struct DrainCompletedAt(Option<TimestampNanoseconds>);
+
+#[rustfmt::skip]
+#[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub struct StopAcknowledgement(DrainCompletedAt);
 
 #[rustfmt::skip]
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
@@ -418,6 +433,11 @@ pub struct PeerSocket {
 #[rustfmt::skip]
 #[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PeerSockets(Vec<PeerSocket>);
+
+#[rustfmt::skip]
+#[cfg_attr(feature = "nota-text", derive(nota_next::NotaDecode, nota_next::NotaEncode))]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq, Eq)]
 pub struct SpawnEnvelope {
     pub engine_identifier: EngineIdentifier,
     pub component_kind: ComponentKind,
@@ -428,7 +448,7 @@ pub struct SpawnEnvelope {
     pub domain_socket_mode: DomainSocketMode,
     pub engine_management_socket_path: EngineManagementSocketPath,
     pub engine_management_socket_mode: EngineManagementSocketMode,
-    pub peer_sockets: Vec<PeerSocket>,
+    pub(crate) peer_sockets: PeerSockets,
     pub manager_socket_path: ManagerSocketPath,
     pub engine_management_protocol_version: EngineManagementProtocolVersion,
 }
@@ -1136,7 +1156,26 @@ impl From<u64> for TimestampNanoseconds {
 }
 
 #[rustfmt::skip]
-impl ComponentReady {
+impl LastFatalStartupError {
+    pub fn new(payload: Option<ComponentStartupError>) -> Self {
+        Self(payload)
+    }
+    pub fn payload(&self) -> &Option<ComponentStartupError> {
+        &self.0
+    }
+    pub fn into_payload(self) -> Option<ComponentStartupError> {
+        self.0
+    }
+}
+#[rustfmt::skip]
+impl From<Option<ComponentStartupError>> for LastFatalStartupError {
+    fn from(payload: Option<ComponentStartupError>) -> Self {
+        Self::new(payload)
+    }
+}
+
+#[rustfmt::skip]
+impl ComponentStartedAt {
     pub fn new(payload: Option<TimestampNanoseconds>) -> Self {
         Self(payload)
     }
@@ -1148,8 +1187,27 @@ impl ComponentReady {
     }
 }
 #[rustfmt::skip]
-impl From<Option<TimestampNanoseconds>> for ComponentReady {
+impl From<Option<TimestampNanoseconds>> for ComponentStartedAt {
     fn from(payload: Option<TimestampNanoseconds>) -> Self {
+        Self::new(payload)
+    }
+}
+
+#[rustfmt::skip]
+impl ComponentReady {
+    pub fn new(payload: ComponentStartedAt) -> Self {
+        Self(payload)
+    }
+    pub fn payload(&self) -> &ComponentStartedAt {
+        &self.0
+    }
+    pub fn into_payload(self) -> ComponentStartedAt {
+        self.0
+    }
+}
+#[rustfmt::skip]
+impl From<ComponentStartedAt> for ComponentReady {
+    fn from(payload: ComponentStartedAt) -> Self {
         Self::new(payload)
     }
 }
@@ -1193,7 +1251,7 @@ impl From<ComponentHealth> for ComponentHealthReport {
 }
 
 #[rustfmt::skip]
-impl StopAcknowledgement {
+impl DrainCompletedAt {
     pub fn new(payload: Option<TimestampNanoseconds>) -> Self {
         Self(payload)
     }
@@ -1205,8 +1263,27 @@ impl StopAcknowledgement {
     }
 }
 #[rustfmt::skip]
-impl From<Option<TimestampNanoseconds>> for StopAcknowledgement {
+impl From<Option<TimestampNanoseconds>> for DrainCompletedAt {
     fn from(payload: Option<TimestampNanoseconds>) -> Self {
+        Self::new(payload)
+    }
+}
+
+#[rustfmt::skip]
+impl StopAcknowledgement {
+    pub fn new(payload: DrainCompletedAt) -> Self {
+        Self(payload)
+    }
+    pub fn payload(&self) -> &DrainCompletedAt {
+        &self.0
+    }
+    pub fn into_payload(self) -> DrainCompletedAt {
+        self.0
+    }
+}
+#[rustfmt::skip]
+impl From<DrainCompletedAt> for StopAcknowledgement {
+    fn from(payload: DrainCompletedAt) -> Self {
         Self::new(payload)
     }
 }
@@ -1245,6 +1322,25 @@ impl IngressContext {
 #[rustfmt::skip]
 impl From<MessageOrigin> for IngressContext {
     fn from(payload: MessageOrigin) -> Self {
+        Self::new(payload)
+    }
+}
+
+#[rustfmt::skip]
+impl PeerSockets {
+    pub fn new(payload: Vec<PeerSocket>) -> Self {
+        Self(payload)
+    }
+    pub fn payload(&self) -> &Vec<PeerSocket> {
+        &self.0
+    }
+    pub fn into_payload(self) -> Vec<PeerSocket> {
+        self.0
+    }
+}
+#[rustfmt::skip]
+impl From<Vec<PeerSocket>> for PeerSockets {
+    fn from(payload: Vec<PeerSocket>) -> Self {
         Self::new(payload)
     }
 }

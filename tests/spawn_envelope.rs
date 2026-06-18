@@ -7,25 +7,23 @@ use signal_persona::{
 };
 
 fn fixture_spawn_envelope() -> SpawnEnvelope {
-    SpawnEnvelope {
-        engine_identifier: EngineIdentifier::new("default"),
-        component_kind: ComponentKind::Message,
-        component: ComponentPrincipal::Message,
-        owner_identity: OwnerIdentity::unix_user(1001),
-        state_directory_path: StateDirectoryPath::new("/var/lib/persona/default/message"),
-        domain_socket_path: DomainSocketPath::new("/var/run/persona/default/message.sock"),
-        domain_socket_mode: DomainSocketMode::new(0o660),
-        engine_management_socket_path: EngineManagementSocketPath::new(
-            "/var/run/persona/default/message.engine_management.sock",
-        ),
-        engine_management_socket_mode: EngineManagementSocketMode::new(0o600),
-        peer_sockets: vec![PeerSocket {
+    SpawnEnvelope::new(
+        EngineIdentifier::new("default"),
+        ComponentKind::Message,
+        ComponentPrincipal::Message,
+        OwnerIdentity::unix_user(1001),
+        StateDirectoryPath::new("/var/lib/persona/default/message"),
+        DomainSocketPath::new("/var/run/persona/default/message.sock"),
+        DomainSocketMode::new(0o660),
+        EngineManagementSocketPath::new("/var/run/persona/default/message.engine_management.sock"),
+        EngineManagementSocketMode::new(0o600),
+        vec![PeerSocket {
             component: ComponentPrincipal::Router,
             domain_socket_path: DomainSocketPath::new("/var/run/persona/default/router.sock"),
         }],
-        manager_socket_path: ManagerSocketPath::new("/var/run/persona/default/persona.sock"),
-        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-    }
+        ManagerSocketPath::new("/var/run/persona/default/persona.sock"),
+        EngineManagementProtocolVersion::new(1),
+    )
 }
 
 #[cfg(feature = "nota-text")]
@@ -50,7 +48,7 @@ fn spawn_envelope_carries_closed_component_principals() {
 
     assert_eq!(envelope.component, ComponentPrincipal::Message);
     assert_eq!(
-        envelope.peer_sockets[0].component,
+        envelope.peer_sockets()[0].component,
         ComponentPrincipal::Router
     );
 }

@@ -102,18 +102,20 @@ fn operations_round_trip_through_length_prefixed_frames() {
 fn replies_round_trip_through_length_prefixed_frames() {
     let replies = [
         Reply::Identified(
-            ComponentIdentity {
-                name: router_name(),
-                kind: ComponentKind::Router,
-                engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-                last_fatal_startup_error: None,
-            }
+            ComponentIdentity::new(
+                router_name(),
+                ComponentKind::Router,
+                EngineManagementProtocolVersion::new(1),
+                None,
+            )
             .into(),
         ),
-        Reply::Ready(ComponentReady::new(Some(TimestampNanos::new(100))).into()),
+        Reply::Ready(ComponentReady::from_started_at(Some(TimestampNanos::new(100))).into()),
         Reply::NotReady(ComponentNotReady::new(ComponentNotReadyReason::AwaitingDependency).into()),
         Reply::HealthReport(ComponentHealthReport::new(ComponentHealth::Running).into()),
-        Reply::StopAcknowledged(StopAcknowledgement::new(Some(TimestampNanos::new(200))).into()),
+        Reply::StopAcknowledged(
+            StopAcknowledgement::from_drain_completed_at(Some(TimestampNanos::new(200))).into(),
+        ),
         Reply::Unimplemented(
             RequestUnimplemented::new(UnimplementedReason::NotInPrototypeScope).into(),
         ),
@@ -138,12 +140,12 @@ fn nota_text_shape_stays_canonical() {
     round_trip_nota(operation, "(Announce (persona-router Router 1))");
 
     let reply = Reply::Identified(
-        ComponentIdentity {
-            name: router_name(),
-            kind: ComponentKind::Router,
-            engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-            last_fatal_startup_error: Some(ComponentStartupError::StoreOpenFailed),
-        }
+        ComponentIdentity::new(
+            router_name(),
+            ComponentKind::Router,
+            EngineManagementProtocolVersion::new(1),
+            Some(ComponentStartupError::StoreOpenFailed),
+        )
         .into(),
     );
     round_trip_nota(
