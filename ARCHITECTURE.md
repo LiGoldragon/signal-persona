@@ -35,7 +35,7 @@ repo is the ordinary side of the pair.
 ## Schema emission
 
 `schema/lib.schema` is the source of truth for the ordinary lifecycle wire
-contract. `build.rs` runs `schema-rust-next`'s wire-contract driver and
+contract. `build.rs` runs `schema-rust`'s wire-contract driver and
 freshness-checks the generated artifact in `src/schema/lib.rs`; regenerate with
 `SIGNAL_PERSONA_UPDATE_SCHEMA_ARTIFACTS=1 cargo build --all-features` after
 schema edits.

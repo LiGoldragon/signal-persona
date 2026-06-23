@@ -1,5 +1,5 @@
 #[cfg(feature = "nota-text")]
-use nota_next::{NotaEncode, NotaSource};
+use nota::{NotaEncode, NotaSource};
 use signal_persona::{
     ComponentKind, ComponentPrincipal, DomainSocketMode, DomainSocketPath, EngineIdentifier,
     EngineManagementProtocolVersion, EngineManagementSocketMode, EngineManagementSocketPath,
