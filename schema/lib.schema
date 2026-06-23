@@ -49,11 +49,11 @@
   ExpectedComponent ComponentName
   ExpectedKind ComponentKind
   Presence { ExpectedComponent ExpectedKind EngineManagementProtocolVersion }
-  ComponentIdentity { ComponentName ComponentKind EngineManagementProtocolVersion (LastFatalStartupError (Optional ComponentStartupError)) }
-  ComponentReady { (ComponentStartedAt (Optional TimestampNanoseconds)) }
+  ComponentIdentity { ComponentName ComponentKind EngineManagementProtocolVersion LastFatalStartupError.(Optional ComponentStartupError) }
+  ComponentReady { ComponentStartedAt.(Optional TimestampNanoseconds) }
   ComponentNotReady { ComponentNotReadyReason }
   ComponentHealthReport { ComponentHealth }
-  StopAcknowledgement { (DrainCompletedAt (Optional TimestampNanoseconds)) }
+  StopAcknowledgement { DrainCompletedAt.(Optional TimestampNanoseconds) }
 
   DependencyKind [PeerComponent]
   ResourceKind [ManagerSocket SocketPath StateDirectory]
@@ -85,7 +85,7 @@
     DomainSocketMode
     EngineManagementSocketPath
     EngineManagementSocketMode
-    (PeerSockets (Vector PeerSocket))
+    PeerSockets.(Vector PeerSocket)
     ManagerSocketPath
     EngineManagementProtocolVersion
   }

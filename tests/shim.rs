@@ -20,7 +20,10 @@ fn signal_persona_exposes_spawn_envelope_types() {
         contract::EngineManagementSocketPath::new("/run/persona/router/supervision.sock");
     let socket_mode = contract::EngineManagementSocketMode::new(0o600);
 
-    assert_eq!(socket_path.as_ref(), "/run/persona/router/supervision.sock");
+    assert_eq!(
+        socket_path.payload(),
+        "/run/persona/router/supervision.sock"
+    );
     assert_eq!(*socket_mode.payload(), 0o600);
     assert!(std::mem::size_of::<contract::SpawnEnvelope>() > 0);
 }

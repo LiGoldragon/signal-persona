@@ -58,12 +58,12 @@ fn spawn_envelope_separates_domain_and_engine_management_sockets() {
     let envelope = fixture_spawn_envelope();
 
     assert_eq!(
-        envelope.domain_socket_path.as_ref(),
+        envelope.domain_socket_path.payload(),
         "/var/run/persona/default/message.sock"
     );
     assert_eq!(*envelope.domain_socket_mode.payload(), 0o660);
     assert_eq!(
-        envelope.engine_management_socket_path.as_ref(),
+        envelope.engine_management_socket_path.payload(),
         "/var/run/persona/default/message.engine_management.sock"
     );
     assert_eq!(*envelope.engine_management_socket_mode.payload(), 0o600);
