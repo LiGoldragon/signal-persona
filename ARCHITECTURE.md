@@ -4,6 +4,10 @@
 `signal-<component>` half of Persona's contract pair. It is canonical,
 schema-derived, and not a shim.
 
+It carries the manager-to-supervised-component lifecycle traffic that makes a
+process a Persona component: announce, readiness, health, graceful stop, and the
+typed `SpawnEnvelope`.
+
 ## Invariant — two contracts per component
 
 Every component has exactly two contracts: `signal-<component>` (ordinary
@@ -45,3 +49,12 @@ The crate re-exports the generated surface from `src/lib.rs`. `Input`,
 `OperationKind`, and `Reply` remain aliases for the ordinary lifecycle relation.
 The spawn envelope uses role-specific path and socket-mode newtypes so repeated
 wire primitives do not hide distinct roles.
+
+## Constraints
+
+- Request payloads do not carry caller identity, timestamps, or authorization
+  proof; those facts are infrastructure-owned.
+- Wire enums are closed. No `Unknown` escape hatch.
+- This crate carries only schema-derived typed wire vocabulary and round-trip
+  witnesses: no daemon actors, persistence, process spawning, socket policy, or
+  CLI parsing.
