@@ -38,11 +38,11 @@ repo is the ordinary side of the pair.
 
 ## Schema emission
 
-`schema/lib.schema` is the source of truth for the ordinary lifecycle wire
-contract. `build.rs` runs `schema-rust`'s wire-contract driver and
-freshness-checks the generated artifact in `src/schema/lib.rs`; regenerate with
-`SIGNAL_PERSONA_UPDATE_SCHEMA_ARTIFACTS=1 cargo build --all-features` after
-schema edits.
+`schema/lib.schema` is the TrueSchema source of truth for the ordinary
+lifecycle wire contract. `build.rs` runs `schema-rust`'s wire-contract driver
+and freshness-checks the generated artifact in `src/schema/lib.rs`; regenerate
+with `SIGNAL_PERSONA_UPDATE_SCHEMA_ARTIFACTS=1 cargo build --all-features`
+after schema edits.
 
 The crate re-exports the generated surface from `src/lib.rs`. `Input`,
 `InputRoute`, and `Output` are the generated roots; `Operation`,
