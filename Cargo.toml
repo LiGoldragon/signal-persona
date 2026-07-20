@@ -24,7 +24,7 @@ rkyv = { version = "0.8", default-features = false, features = ["std", "bytechec
 signal-frame = { git = "https://github.com/LiGoldragon/signal-frame.git", rev = "91e675298b79ec2aab2e0714a5e3e5b2d6d07339", default-features = false }
 
 [build-dependencies]
-schema-rust = { package = "schema-rust", git = "https://github.com/LiGoldragon/schema-rust.git", rev = "255823ab3d0d6c5cab26e26a8b1d60c63c52c7b4" }
+schema-rust = { package = "schema-rust", git = "https://github.com/LiGoldragon/schema-rust.git", rev = "384337d1313df19b77641ac7240fcd2fc6864f54" }
 
 [dev-dependencies]
 nota = { package = "nota", git = "https://github.com/LiGoldragon/nota.git", rev = "ce7c564de0a0518eaa1938d55dccc460a67cadb4" }
