@@ -4,3 +4,5 @@ This repository is the ordinary Persona working-signal contract for
 manager-to-supervised-component lifecycle traffic.
 Keep daemon behavior, actors, storage, privileged policy commands, and text
 parsing out of this crate.
+
+This repository is under fast development and constantly breaking.
