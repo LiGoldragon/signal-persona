@@ -1,4 +1,4 @@
-;; Canonical NOTA examples for signal-persona ordinary lifecycle traffic.
+;; Canonical DOTOS examples for signal-persona ordinary lifecycle traffic.
 
 (Announce ([persona-router] Router 1))
 (Query (ReadinessStatus [persona-router]))

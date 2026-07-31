@@ -1,5 +1,5 @@
-#[cfg(feature = "nota-text")]
-use nota::{NotaEncode, NotaSource};
+#[cfg(feature = "dotos-text")]
+use dotos::{DotosEncode, DotosSource};
 use signal_persona::{
     ComponentKind, ComponentPrincipal, DomainSocketMode, DomainSocketPath, EngineIdentifier,
     EngineManagementProtocolVersion, EngineManagementSocketMode, EngineManagementSocketPath,
@@ -26,19 +26,19 @@ fn fixture_spawn_envelope() -> SpawnEnvelope {
     )
 }
 
-#[cfg(feature = "nota-text")]
+#[cfg(feature = "dotos-text")]
 #[test]
-fn spawn_envelope_round_trips_through_nota_text() {
+fn spawn_envelope_round_trips_through_dotos_text() {
     let envelope = fixture_spawn_envelope();
-    let text = envelope.to_nota();
-    let recovered = NotaSource::new(&text)
+    let text = envelope.to_dotos();
+    let recovered = DotosSource::new(&text)
         .parse::<SpawnEnvelope>()
         .expect("decode spawn envelope");
 
     assert_eq!(recovered, envelope);
     assert_eq!(
         text,
-        "(default Message Message (UnixUser 1001) /var/lib/persona/default/message /var/run/persona/default/message.sock 432 /var/run/persona/default/message.engine_management.sock 384 [(Router /var/run/persona/default/router.sock)] /var/run/persona/default/persona.sock 1)"
+        "{default Message Message UnixUser.1001 /var/lib/persona/default/message /var/run/persona/default/message.sock 432 /var/run/persona/default/message.engine_management.sock 384 [{Router /var/run/persona/default/router.sock}] /var/run/persona/default/persona.sock 1}"
     );
 }
 

@@ -2,14 +2,11 @@ use signal_persona as contract;
 
 #[test]
 fn signal_persona_exposes_lifecycle_operation_root() {
-    let operation = contract::Operation::Announce(
-        contract::Presence {
-            expected_component: contract::ComponentName::new("persona-router").into(),
-            expected_kind: contract::ComponentKind::Router.into(),
-            engine_management_protocol_version: contract::EngineManagementProtocolVersion::new(1),
-        }
-        .into(),
-    );
+    let operation = contract::Operation::Announce(contract::Presence {
+        expected_component: contract::ComponentName::new("persona-router").into(),
+        expected_kind: contract::ComponentKind::Router.into(),
+        engine_management_protocol_version: contract::EngineManagementProtocolVersion::new(1),
+    });
 
     assert_eq!(operation.kind(), contract::OperationKind::Announce);
 }

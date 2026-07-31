@@ -1,81 +1,83 @@
 ;; signal-persona — ordinary working wire contract for the Persona engine
 ;; manager lifecycle relation.
 ;;
-;; Wire-only: emits rkyv + optional NOTA codecs, route witnesses, short
+;; Wire-only: emits rkyv + optional DOTOS codecs, route witnesses, short
 ;; headers, and signal-frame helpers. Runtime supervision, process spawning,
 ;; socket binding, persistence, and policy live in the persona daemon.
 ;; Privileged policy commands live in meta-signal-persona.
 
-[Announce Query Stop]
-[Identified Ready NotReady HealthReport StopAcknowledged Unimplemented]
+{}
+
+[(Announce Presence) (Query LifecycleQuery) (Stop ComponentName)]
+[(Identified ComponentIdentity) (Ready ComponentReady) (NotReady ComponentNotReady) (HealthReport ComponentHealthReport) (StopAcknowledged StopAcknowledgement) (Unimplemented RequestUnimplemented)]
 {
-  Announce Presence
-  Query LifecycleQuery
-  Stop ComponentName
+  Announce.Presence
+  Query.LifecycleQuery
+  Stop.ComponentName
 
-  Identified ComponentIdentity
-  Ready ComponentReady
-  NotReady ComponentNotReady
-  HealthReport ComponentHealthReport
-  StopAcknowledged StopAcknowledgement
-  Unimplemented RequestUnimplemented
+  Identified.ComponentIdentity
+  Ready.ComponentReady
+  NotReady.ComponentNotReady
+  HealthReport.ComponentHealthReport
+  StopAcknowledged.StopAcknowledgement
+  Unimplemented.RequestUnimplemented
 
-  ComponentName String
-  EngineIdentifier String
-  ChannelIdentifier String
-  ComponentInstanceName String
-  HostName String
-  SystemPrincipal String
-  UnixUserIdentifier u64
-  NetworkPeer String
+  ComponentName.String
+  EngineIdentifier.String
+  ChannelIdentifier.String
+  ComponentInstanceName.String
+  HostName.String
+  SystemPrincipal.String
+  UnixUserIdentifier.u64
+  NetworkPeer.String
 
-  ComponentKind [Mind Router Message System Harness Terminal Introspect Orchestrate Spirit]
-  ComponentPrincipal [Mind Message Router Terminal Harness System Introspect Orchestrate Spirit]
-  ComponentHealth [Starting Running Degraded Stopped Failed]
-  ComponentDesiredState [Running Stopped]
-  ComponentStatus { ComponentName ComponentKind ComponentDesiredState ComponentHealth }
+  ComponentKind.[Mind Router Message System Harness Terminal Introspect Orchestrate Spirit]
+  ComponentPrincipal.[Mind Message Router Terminal Harness System Introspect Orchestrate Spirit]
+  ComponentHealth.[Starting Running Degraded Stopped Failed]
+  ComponentDesiredState.[Running Stopped]
+  ComponentStatus.{ ComponentName ComponentKind ComponentDesiredState ComponentHealth }
 
-  EngineManagementProtocolVersion u64
-  StateDirectoryPath String
-  DomainSocketPath String
-  EngineManagementSocketPath String
-  ManagerSocketPath String
-  DomainSocketMode u64
-  EngineManagementSocketMode u64
-  TimestampNanoseconds u64
+  EngineManagementProtocolVersion.u64
+  StateDirectoryPath.String
+  DomainSocketPath.String
+  EngineManagementSocketPath.String
+  ManagerSocketPath.String
+  DomainSocketMode.u64
+  EngineManagementSocketMode.u64
+  TimestampNanoseconds.u64
 
-  ComponentStartupError [SocketBindFailed StoreOpenFailed EnvelopeIncomplete]
-  ComponentNotReadyReason [NotYetBound AwaitingDependency RecoveringFromCrash]
-  ExpectedComponent ComponentName
-  ExpectedKind ComponentKind
-  Presence { ExpectedComponent ExpectedKind EngineManagementProtocolVersion }
-  ComponentIdentity { ComponentName ComponentKind EngineManagementProtocolVersion LastFatalStartupError.(Optional ComponentStartupError) }
-  ComponentReady { ComponentStartedAt.(Optional TimestampNanoseconds) }
-  ComponentNotReady { ComponentNotReadyReason }
-  ComponentHealthReport { ComponentHealth }
-  StopAcknowledgement { DrainCompletedAt.(Optional TimestampNanoseconds) }
+  ComponentStartupError.[SocketBindFailed StoreOpenFailed EnvelopeIncomplete]
+  ComponentNotReadyReason.[NotYetBound AwaitingDependency RecoveringFromCrash]
+  ExpectedComponent.ComponentName
+  ExpectedKind.ComponentKind
+  Presence.{ ExpectedComponent ExpectedKind EngineManagementProtocolVersion }
+  ComponentIdentity.{ ComponentName ComponentKind EngineManagementProtocolVersion LastFatalStartupError.Optional.ComponentStartupError }
+  ComponentReady.{ ComponentStartedAt.Optional.TimestampNanoseconds }
+  ComponentNotReady.{ ComponentNotReadyReason }
+  ComponentHealthReport.{ ComponentHealth }
+  StopAcknowledgement.{ DrainCompletedAt.Optional.TimestampNanoseconds }
 
-  DependencyKind [PeerComponent]
-  ResourceKind [ManagerSocket SocketPath StateDirectory]
-  UnimplementedReason [NotInPrototypeScope (DependencyMissing DependencyKind) (ResourceUnavailable ResourceKind)]
-  RequestUnimplemented { UnimplementedReason }
+  DependencyKind.[PeerComponent]
+  ResourceKind.[ManagerSocket SocketPath StateDirectory]
+  UnimplementedReason.[NotInPrototypeScope (DependencyMissing DependencyKind) (ResourceUnavailable ResourceKind)]
+  RequestUnimplemented.{ UnimplementedReason }
 
-  OwnerIdentity [(UnixUser UnixUserIdentifier) (System SystemPrincipal)]
-  Host HostName
-  OtherPersonaEngine { EngineIdentifier Host }
-  ConnectionClass [Owner (NonOwnerUser UnixUserIdentifier) (System SystemPrincipal) (OtherPersona OtherPersonaEngine) (Network NetworkPeer)]
-  InternalComponentInstanceOrigin { ComponentPrincipal ComponentInstanceName }
-  MessageOrigin [
+  OwnerIdentity.[(UnixUser UnixUserIdentifier) (System SystemPrincipal)]
+  Host.HostName
+  OtherPersonaEngine.{ EngineIdentifier Host }
+  ConnectionClass.[Owner (NonOwnerUser UnixUserIdentifier) (System SystemPrincipal) (OtherPersona OtherPersonaEngine) (Network NetworkPeer)]
+  InternalComponentInstanceOrigin.{ ComponentPrincipal ComponentInstanceName }
+  MessageOrigin.[
     (LocalOwner OwnerIdentity)
     (LocalConnection ConnectionClass)
     (Internal ComponentPrincipal)
     (InternalComponentInstance InternalComponentInstanceOrigin)
     (Channel ChannelIdentifier)
   ]
-  IngressContext { MessageOrigin }
+  IngressContext.{ MessageOrigin }
 
-  PeerSocket { ComponentPrincipal DomainSocketPath }
-  SpawnEnvelope {
+  PeerSocket.{ ComponentPrincipal DomainSocketPath }
+  SpawnEnvelope.{
     EngineIdentifier
     ComponentKind
     ComponentPrincipal
@@ -85,10 +87,12 @@
     DomainSocketMode
     EngineManagementSocketPath
     EngineManagementSocketMode
-    PeerSockets.(Vector PeerSocket)
+    PeerSockets.Vector.PeerSocket
     ManagerSocketPath
     EngineManagementProtocolVersion
   }
 
-  LifecycleQuery [(ReadinessStatus ComponentName) (HealthStatus ComponentName)]
+  LifecycleQuery.[(ReadinessStatus ComponentName) (HealthStatus ComponentName)]
 }
+{}
+{}
