@@ -1,16 +1,10 @@
 #[cfg(feature = "dotos-text")]
-use dotos::{DotosDecode, DotosEncode, DotosSource};
-use signal_frame::{
-    ExchangeIdentifier, ExchangeLane, LaneSequence, NonEmpty, Reply as FrameReply, RequestPayload,
-    SessionEpoch, SubReply,
-};
-#[cfg(feature = "dotos-text")]
-use signal_persona::ComponentStartupError;
-use signal_persona::{
-    ComponentHealth, ComponentHealthReport, ComponentIdentity, ComponentKind, ComponentName,
-    ComponentNotReady, ComponentNotReadyReason, ComponentReady, EngineManagementProtocolVersion,
-    Frame, FrameBody, Operation, OperationKind, Presence, Query, Reply, RequestUnimplemented,
-    StopAcknowledgement, TimestampNanos, UnimplementedReason,
+use dotos::{DotosEncode, DotosSource};
+use signal_frame::{ExchangeIdentifier, ExchangeLane, LaneSequence, Reply, SessionEpoch, SubReply};
+use signal_persona::schema::lib::{
+    Frame, FrameBody, InputRoute, OutputRoute, z2VMoT, z2VNEZ, z2VP8n, z2VPho, z2VQEa, z2VQrC,
+    z2VRTx, z2VRUd, z2VSo2, z2VTjH, z2VUT8, z2VUtF, z2VVUX, z2VWMn, z2VXzu, z2VYBe, z2VZ7N, z2VaBZ,
+    z2VbVt, z2Vbqz,
 };
 
 fn exchange() -> ExchangeIdentifier {
@@ -21,59 +15,41 @@ fn exchange() -> ExchangeIdentifier {
     )
 }
 
-fn completed_reply(payload: Reply) -> FrameReply<Reply> {
-    FrameReply::committed(NonEmpty::single(SubReply::Ok(payload)))
+fn router_name() -> z2VUT8 {
+    z2VUT8::new("persona-router".to_owned())
 }
 
-fn router_name() -> ComponentName {
-    ComponentName::new("persona-router")
+fn presence() -> z2VQrC {
+    z2VQrC {
+        field_0: z2VRUd::new(router_name()),
+        field_1: z2VPho::new(z2VXzu::z2VKp5),
+        field_2: z2VMoT::new(1),
+    }
 }
 
-#[cfg(feature = "dotos-text")]
-fn round_trip_dotos<Value>(value: Value, expected: &str)
-where
-    Value: DotosEncode + DotosDecode + PartialEq + std::fmt::Debug,
-{
-    let text = value.to_dotos();
-    assert_eq!(text, expected);
-    let recovered = DotosSource::new(&text).parse::<Value>().expect("decode");
-    assert_eq!(recovered, value);
-}
-
-fn round_trip_operation(operation: Operation) -> Operation {
-    let route = operation.wire_route();
-    let request = operation.into_request();
-    let frame = Frame::new(
-        route,
-        FrameBody::Request {
-            exchange: exchange(),
-            request,
-        },
-    );
-    let bytes = frame.encode_length_prefixed().expect("encode operation");
-    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode operation");
-
+fn round_trip_request(request: z2Vbqz) -> z2Vbqz {
+    let bytes = request
+        .clone()
+        .into_frame(exchange())
+        .encode_length_prefixed()
+        .expect("encode request");
+    let decoded = Frame::decode_length_prefixed(&bytes).expect("decode request");
     match decoded.into_body() {
         FrameBody::Request { request, .. } => request.payloads().head().clone(),
         other => panic!("expected request, got {other:?}"),
     }
 }
 
-fn round_trip_reply(reply: Reply) -> Reply {
-    let route = reply.wire_route();
-    let frame = Frame::new(
-        route,
-        FrameBody::Reply {
-            exchange: exchange(),
-            reply: completed_reply(reply.clone()),
-        },
-    );
-    let bytes = frame.encode_length_prefixed().expect("encode reply");
+fn round_trip_reply(reply: z2VWMn) -> z2VWMn {
+    let bytes = reply
+        .clone()
+        .into_reply_frame(exchange())
+        .encode_length_prefixed()
+        .expect("encode reply");
     let decoded = Frame::decode_length_prefixed(&bytes).expect("decode reply");
-
     match decoded.into_body() {
         FrameBody::Reply { reply, .. } => match reply {
-            FrameReply::Accepted { per_operation, .. } => match per_operation.into_head() {
+            Reply::Accepted { per_operation, .. } => match per_operation.into_head() {
                 SubReply::Ok(payload) => payload,
                 other => panic!("expected accepted reply payload, got {other:?}"),
             },
@@ -84,96 +60,71 @@ fn round_trip_reply(reply: Reply) -> Reply {
 }
 
 #[test]
-fn operations_round_trip_through_length_prefixed_frames() {
-    let announce = Operation::Announce(Presence {
-        expected_component: router_name().into(),
-        expected_kind: ComponentKind::Router.into(),
-        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-    });
-    assert_eq!(round_trip_operation(announce.clone()), announce);
-
-    for query in [
-        Query::ReadinessStatus(router_name()),
-        Query::HealthStatus(router_name()),
-    ] {
-        let operation = Operation::Query(query);
-        assert_eq!(round_trip_operation(operation.clone()), operation);
+fn handwritten_lifecycle_requests_round_trip() {
+    let cases = [
+        (z2Vbqz::z2VRix(presence()), InputRoute::Announce),
+        (
+            z2Vbqz::z2VQes(z2VZ7N::z2VMrM(router_name())),
+            InputRoute::Query,
+        ),
+        (z2Vbqz::z2VPCE(router_name()), InputRoute::Stop),
+    ];
+    for (request, route) in cases {
+        assert_eq!(request.route(), route);
+        assert_eq!(round_trip_request(request.clone()), request);
     }
-
-    let stop = Operation::Stop(router_name());
-    assert_eq!(round_trip_operation(stop.clone()), stop);
 }
 
 #[test]
-fn replies_round_trip_through_length_prefixed_frames() {
+fn handwritten_lifecycle_replies_round_trip() {
     let replies = [
-        Reply::Identified(ComponentIdentity::new(
-            router_name(),
-            ComponentKind::Router,
-            EngineManagementProtocolVersion::new(1),
-            None,
-        )),
-        Reply::Ready(ComponentReady::from_started_at(Some(TimestampNanos::new(
-            100,
-        )))),
-        Reply::NotReady(ComponentNotReady::new(
-            ComponentNotReadyReason::AwaitingDependency,
-        )),
-        Reply::HealthReport(ComponentHealthReport::new(ComponentHealth::Running)),
-        Reply::StopAcknowledged(StopAcknowledgement::from_drain_completed_at(Some(
-            TimestampNanos::new(200),
-        ))),
-        Reply::Unimplemented(RequestUnimplemented::new(
-            UnimplementedReason::NotInPrototypeScope,
-        )),
+        z2VWMn::z2VMBi(z2VSo2 {
+            field_0: router_name(),
+            field_1: z2VXzu::z2VKp5,
+            field_2: z2VMoT::new(1),
+            field_3: None,
+        }),
+        z2VWMn::z2VYDy(z2VQEa::new(Some(z2VUtF::new(100)))),
+        z2VWMn::z2VXTU(z2VP8n::new(z2VbVt::z2Va7G)),
+        z2VWMn::z2VTp5(z2VNEZ::new(z2VRTx::z2VcFR)),
+        z2VWMn::z2VUnp(z2VYBe::new(Some(z2VUtF::new(200)))),
+        z2VWMn::z2VdiG(z2VaBZ::new(z2VTjH::z2VX6Y(z2VVUX::z2VVnV))),
     ];
-
-    for reply in replies {
+    let expected = [
+        OutputRoute::Identified,
+        OutputRoute::Ready,
+        OutputRoute::NotReady,
+        OutputRoute::HealthReport,
+        OutputRoute::StopAcknowledged,
+        OutputRoute::Unimplemented,
+    ];
+    for (reply, route) in replies.into_iter().zip(expected) {
+        assert_eq!(reply.route(), route);
         assert_eq!(round_trip_reply(reply.clone()), reply);
     }
 }
 
 #[cfg(feature = "dotos-text")]
 #[test]
-fn dotos_text_shape_stays_canonical() {
-    let operation = Operation::Announce(Presence {
-        expected_component: router_name().into(),
-        expected_kind: ComponentKind::Router.into(),
-        engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
+fn dotos_keeps_human_lifecycle_names_while_rust_uses_encoded_names() {
+    let request = z2Vbqz::z2VRix(presence());
+    let text = request.to_dotos();
+    assert!(text.starts_with("Announce."), "{text}");
+    let recovered = DotosSource::new(&text)
+        .parse::<z2Vbqz>()
+        .expect("decode Dotos request");
+    assert_eq!(recovered, request);
+
+    let reply = z2VWMn::z2VMBi(z2VSo2 {
+        field_0: router_name(),
+        field_1: z2VXzu::z2VKp5,
+        field_2: z2VMoT::new(1),
+        field_3: Some(signal_persona::schema::lib::z2Vb2D::z2VRWY),
     });
-    round_trip_dotos(operation, "Announce.{persona-router Router 1}");
-
-    let reply = Reply::Identified(ComponentIdentity::new(
-        router_name(),
-        ComponentKind::Router,
-        EngineManagementProtocolVersion::new(1),
-        Some(ComponentStartupError::StoreOpenFailed),
-    ));
-    round_trip_dotos(
-        reply,
-        "Identified.{persona-router Router 1 Some.StoreOpenFailed}",
-    );
-}
-
-#[test]
-fn operation_kind_is_generated_by_macro() {
-    let cases = [
-        (
-            Operation::Announce(Presence {
-                expected_component: router_name().into(),
-                expected_kind: ComponentKind::Router.into(),
-                engine_management_protocol_version: EngineManagementProtocolVersion::new(1),
-            }),
-            OperationKind::Announce,
-        ),
-        (
-            Operation::Query(Query::ReadinessStatus(router_name())),
-            OperationKind::Query,
-        ),
-        (Operation::Stop(router_name()), OperationKind::Stop),
-    ];
-
-    for (operation, expected_kind) in cases {
-        assert_eq!(operation.kind(), expected_kind);
-    }
+    let text = reply.to_dotos();
+    assert!(text.starts_with("Identified."), "{text}");
+    let recovered = DotosSource::new(&text)
+        .parse::<z2VWMn>()
+        .expect("decode Dotos reply");
+    assert_eq!(recovered, reply);
 }

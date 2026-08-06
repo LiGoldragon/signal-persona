@@ -31,12 +31,12 @@
           "rust-src"
         ];
         craneLib = (crane.mkLib pkgs).overrideToolchain toolchain;
-        schemaFilter = path: _type: builtins.match ".*/schema(/.*)?$" path != null;
+        ethosFilter = path: type: type == "regular" && pkgs.lib.hasSuffix ".ethos" path;
         examplesFilter = path: _type: builtins.match ".*/examples(/.*)?$" path != null;
         sourceFilter = path: type:
           type == "directory"
           || (craneLib.filterCargoSources path type)
-          || (schemaFilter path type)
+          || (ethosFilter path type)
           || (examplesFilter path type);
         src = pkgs.lib.cleanSourceWith {
           src = ./.;
@@ -55,11 +55,25 @@
         checks = {
           build = craneLib.cargoBuild (commonArgs // { inherit cargoArtifacts; });
           test = craneLib.cargoTest (commonArgs // { inherit cargoArtifacts; });
-          test-shim = craneLib.cargoTest (
+          test-lifecycle-roles = craneLib.cargoTest (
             commonArgs
             // {
               inherit cargoArtifacts;
-              cargoTestExtraArgs = "--test shim";
+              cargoTestExtraArgs = "--test lifecycle_roles";
+            }
+          );
+          test-interface-contract = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test interface_contract";
+            }
+          );
+          test-dependency-boundary = craneLib.cargoTest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              cargoTestExtraArgs = "--test dependency_boundary";
             }
           );
           test-round-trip = craneLib.cargoTest (

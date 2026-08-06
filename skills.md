@@ -1,17 +1,16 @@
 # skills — signal-persona
 
-This repository is the schema-derived ordinary Persona working-signal contract.
-It exposes manager-to-supervised-component lifecycle traffic: announce,
-readiness, health, graceful stop, and the typed `SpawnEnvelope`.
+Work from the encoded Interface transaction outward.
 
-The Persona contract pair is:
+- Edit `ethos/interface.ethos` for structural Type changes.
+- Mint and record new identities explicitly in `src/bootstrap_manifest.rs`.
+- Keep request/reply role behavior in `src/schema/lib/behavior.rs` during this
+  bootstrap stage.
+- Regenerate the checked source and Rust projections with
+  `SIGNAL_PERSONA_UPDATE_INTERFACE_ARTIFACTS=1 cargo build --all-features`.
+- Use encoded Rust coordinates in assembly code. Human-visible names belong to
+  Ethos metadata and Dotos projection.
+- Run the repository Cargo suite and exact Nix flake check before publication.
 
-- `signal-persona` for ordinary lifecycle traffic;
-- `meta-signal-persona` for privileged Persona engine-manager commands.
-
-Do not add privileged policy payloads here. Add those to
-`meta-signal-persona`.
-
-Edit `schema/lib.schema`, then regenerate checked-in artifacts with
-`SIGNAL_PERSONA_UPDATE_SCHEMA_ARTIFACTS=1 cargo build --all-features`.
-Generated Rust lives in `src/schema/lib.rs`; do not hand-edit it.
+The ordinary channel owns lifecycle traffic. Privileged engine policy belongs
+to `meta-signal-persona`.

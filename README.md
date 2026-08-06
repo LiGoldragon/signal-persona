@@ -1,22 +1,19 @@
 # signal-persona
 
-The **ordinary working-signal contract for Persona** — the `signal-<component>`
-half of Persona's contract pair. Every component has exactly two contracts:
-`signal-<component>` (ordinary working signal) and `meta-signal-<component>`
-(meta policy signal). For Persona that pair is **`signal-persona`** (this repo,
-ordinary) and **`meta-signal-persona`** (meta / privileged policy).
+The ordinary lifecycle Interface for Persona. Together,
+`signal-persona` and `meta-signal-persona` form Persona's working and privileged
+contract pair.
 
-This carries the ordinary Persona engine-management lifecycle traffic
-(announce, readiness query, health query, graceful stop, the typed
-`SpawnEnvelope`). The privileged policy surface (engine launch, retirement,
-component start/stop) belongs in `meta-signal-persona`.
+The Interface carries component announcement, readiness and health queries,
+graceful stop, and the typed spawn envelope. Its canonical component-owned
+source is `ethos/interface.ethos`; its generated Rust Types use encoded
+identities, while Dotos renders human-facing names. Lifecycle request/reply
+roles remain handwritten during the current bootstrap stage.
 
-The contract is generated from `schema/lib.schema`; refresh the checked-in
-artifact with `SIGNAL_PERSONA_UPDATE_SCHEMA_ARTIFACTS=1 cargo build
---all-features`.
+Regenerate the checked source and Rust projection with:
 
-> Note: `signal-persona` is **not** a retired shim. The earlier framing that
-> split Persona into `owner-signal-persona` + `signal-engine-management` was a
-> deviation from the two-contract invariant. The privileged surface is now
-> `meta-signal-persona`; this crate exposes the ordinary lifecycle surface.
-> Per psyche 2026-06-07 (Spirit `n0ss`).
+```console
+SIGNAL_PERSONA_UPDATE_INTERFACE_ARTIFACTS=1 cargo build --all-features
+```
+
+Persona owns process supervision, sockets, persistence, and privileged policy.

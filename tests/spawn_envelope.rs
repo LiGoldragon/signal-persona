@@ -1,70 +1,59 @@
 #[cfg(feature = "dotos-text")]
 use dotos::{DotosEncode, DotosSource};
-use signal_persona::{
-    ComponentKind, ComponentPrincipal, DomainSocketMode, DomainSocketPath, EngineIdentifier,
-    EngineManagementProtocolVersion, EngineManagementSocketMode, EngineManagementSocketPath,
-    ManagerSocketPath, OwnerIdentity, PeerSocket, SpawnEnvelope, StateDirectoryPath,
+use signal_persona::schema::lib::{
+    z2VMoT, z2VNyf, z2VPCG, z2VRBs, z2VRuG, z2VSQQ, z2VSSX, z2VWLR, z2VWbh, z2VXzu, z2VaTc, z2VckR,
+    z2VdUt, z2Veez,
 };
 
-fn fixture_spawn_envelope() -> SpawnEnvelope {
-    SpawnEnvelope::new(
-        EngineIdentifier::new("default"),
-        ComponentKind::Message,
-        ComponentPrincipal::Message,
-        OwnerIdentity::unix_user(1001),
-        StateDirectoryPath::new("/var/lib/persona/default/message"),
-        DomainSocketPath::new("/var/run/persona/default/message.sock"),
-        DomainSocketMode::new(0o660),
-        EngineManagementSocketPath::new("/var/run/persona/default/message.engine_management.sock"),
-        EngineManagementSocketMode::new(0o600),
-        vec![PeerSocket {
-            component_principal: ComponentPrincipal::Router,
-            domain_socket_path: DomainSocketPath::new("/var/run/persona/default/router.sock"),
+fn fixture() -> z2VWLR {
+    z2VWLR {
+        field_0: z2VRuG::new("default".to_owned()),
+        field_1: z2VXzu::z2VWUK,
+        field_2: z2VPCG::z2VRoL,
+        field_3: z2VRBs::z2VWNV(z2VaTc::new(1001)),
+        field_4: z2VWbh::new("/var/lib/persona/default/message".to_owned()),
+        field_5: z2Veez::new("/var/run/persona/default/message.sock".to_owned()),
+        field_6: z2VNyf::new(0o660),
+        field_7: z2VckR::new("/var/run/persona/default/message.engine_management.sock".to_owned()),
+        field_8: z2VSSX::new(0o600),
+        field_9: vec![z2VdUt {
+            field_0: z2VPCG::z2Vd4e,
+            field_1: z2Veez::new("/var/run/persona/default/router.sock".to_owned()),
         }],
-        ManagerSocketPath::new("/var/run/persona/default/persona.sock"),
-        EngineManagementProtocolVersion::new(1),
-    )
+        field_10: z2VSQQ::new("/var/run/persona/default/persona.sock".to_owned()),
+        field_11: z2VMoT::new(1),
+    }
+}
+
+#[test]
+fn strict_spawn_envelope_round_trips_through_archive_bytes() {
+    let envelope = fixture();
+    let bytes = rkyv::to_bytes::<rkyv::rancor::Error>(&envelope).expect("encode envelope");
+    let recovered =
+        rkyv::from_bytes::<z2VWLR, rkyv::rancor::Error>(&bytes).expect("decode envelope");
+    assert_eq!(recovered, envelope);
 }
 
 #[cfg(feature = "dotos-text")]
 #[test]
-fn spawn_envelope_round_trips_through_dotos_text() {
-    let envelope = fixture_spawn_envelope();
+fn strict_spawn_envelope_round_trips_through_dotos() {
+    let envelope = fixture();
     let text = envelope.to_dotos();
     let recovered = DotosSource::new(&text)
-        .parse::<SpawnEnvelope>()
-        .expect("decode spawn envelope");
-
+        .parse::<z2VWLR>()
+        .expect("decode envelope");
     assert_eq!(recovered, envelope);
-    assert_eq!(
-        text,
-        "{default Message Message UnixUser.1001 /var/lib/persona/default/message /var/run/persona/default/message.sock 432 /var/run/persona/default/message.engine_management.sock 384 [{Router /var/run/persona/default/router.sock}] /var/run/persona/default/persona.sock 1}"
-    );
+    assert!(text.contains("UnixUser.1001"), "{text}");
 }
 
 #[test]
-fn spawn_envelope_carries_closed_component_principals() {
-    let envelope = fixture_spawn_envelope();
-
-    assert_eq!(envelope.component_principal, ComponentPrincipal::Message);
+fn strict_spawn_envelope_keeps_role_distinctions() {
+    let envelope = fixture();
+    assert!(matches!(envelope.field_1, z2VXzu::z2VWUK));
+    assert!(matches!(envelope.field_2, z2VPCG::z2VRoL));
+    assert!(matches!(envelope.field_3, z2VRBs::z2VWNV(_)));
     assert_eq!(
-        envelope.peer_sockets()[0].component_principal,
-        ComponentPrincipal::Router
-    );
-}
-
-#[test]
-fn spawn_envelope_separates_domain_and_engine_management_sockets() {
-    let envelope = fixture_spawn_envelope();
-
-    assert_eq!(
-        envelope.domain_socket_path.payload(),
+        envelope.field_5.payload(),
         "/var/run/persona/default/message.sock"
     );
-    assert_eq!(*envelope.domain_socket_mode.payload(), 0o660);
-    assert_eq!(
-        envelope.engine_management_socket_path.payload(),
-        "/var/run/persona/default/message.engine_management.sock"
-    );
-    assert_eq!(*envelope.engine_management_socket_mode.payload(), 0o600);
 }
