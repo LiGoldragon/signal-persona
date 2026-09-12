@@ -1,0 +1,11 @@
+; Canonical datom examples for signal-persona ordinary lifecycle traffic.
+
+Announce.{ persona-router Router 1 }
+Query.ReadinessStatus.persona-router
+Query.HealthStatus.persona-router
+Stop.persona-router
+
+Identified.{ persona-router Router 1 None }
+Ready.None
+HealthReport.Running
+StopAcknowledged.None
