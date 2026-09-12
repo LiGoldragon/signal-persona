@@ -1,10 +1,7 @@
 #![allow(dead_code, non_camel_case_types, non_snake_case)]
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub struct Presence {
     pub expected_component: ExpectedComponent,
     pub expected_kind: ExpectedKind,
@@ -14,10 +11,7 @@ pub struct Presence {
 pub type ComponentInstanceName = String;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub struct OtherPersonaEngine {
     pub engine_identifier: EngineIdentifier,
     pub host: Host,
@@ -26,10 +20,7 @@ pub struct OtherPersonaEngine {
 pub type ExpectedComponent = ComponentName;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum OwnerIdentity {
     System(SystemPrincipal),
     UnixUser(UnixUserIdentifier),
@@ -38,10 +29,7 @@ pub enum OwnerIdentity {
 pub type EngineManagementProtocolVersion = i64;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum ComponentNotReadyReason {
     RecoveringFromCrash,
     NotYetBound,
@@ -49,10 +37,7 @@ pub enum ComponentNotReadyReason {
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub struct ComponentStatus {
     pub component_name: ComponentName,
     pub component_kind: ComponentKind,
@@ -63,10 +48,7 @@ pub struct ComponentStatus {
 pub type ComponentReady = std::option::Option<TimestampNanoseconds>;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub struct SpawnEnvelope {
     pub engine_identifier: EngineIdentifier,
     pub component_kind: ComponentKind,
@@ -91,10 +73,7 @@ pub type IngressContext = MessageOrigin;
 pub type RequestUnimplemented = UnimplementedReason;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum LifecycleReply {
     Ready(ComponentReady),
     Unimplemented(RequestUnimplemented),
@@ -105,10 +84,7 @@ pub enum LifecycleReply {
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum ComponentPrincipal {
     Router,
     System,
@@ -124,10 +100,7 @@ pub enum ComponentPrincipal {
 pub type ChannelIdentifier = String;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum ComponentHealth {
     Degraded,
     Stopped,
@@ -137,10 +110,7 @@ pub enum ComponentHealth {
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub struct ComponentIdentity {
     pub component_name: ComponentName,
     pub component_kind: ComponentKind,
@@ -151,10 +121,7 @@ pub struct ComponentIdentity {
 pub type TimestampNanoseconds = i64;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub struct PeerSocket {
     pub component_principal: ComponentPrincipal,
     pub domain_socket_path: DomainSocketPath,
@@ -163,10 +130,7 @@ pub struct PeerSocket {
 pub type HostName = String;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum UnimplementedReason {
     NotInPrototypeScope,
     DependencyMissing(DependencyKind),
@@ -178,10 +142,7 @@ pub type ComponentHealthReport = ComponentHealth;
 pub type DomainSocketMode = i64;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum ComponentKind {
     Mind,
     Introspect,
@@ -195,20 +156,14 @@ pub enum ComponentKind {
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum LifecycleQuery {
     HealthStatus(ComponentName),
     ReadinessStatus(ComponentName),
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum MessageOrigin {
     InternalComponentInstance(InternalComponentInstanceOrigin),
     LocalOwner(OwnerIdentity),
@@ -218,10 +173,7 @@ pub enum MessageOrigin {
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum ResourceKind {
     ManagerSocket,
     SocketPath,
@@ -235,10 +187,7 @@ pub type EngineManagementSocketMode = i64;
 pub type ManagerSocketPath = String;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum ComponentStartupError {
     EnvelopeIncomplete,
     SocketBindFailed,
@@ -248,10 +197,7 @@ pub enum ComponentStartupError {
 pub type ComponentName = String;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum LifecycleRequest {
     Query(LifecycleQuery),
     Announce(Presence),
@@ -259,10 +205,7 @@ pub enum LifecycleRequest {
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum ConnectionClass {
     Network(NetworkPeer),
     OtherPersona(OtherPersonaEngine),
@@ -274,20 +217,14 @@ pub enum ConnectionClass {
 pub type Host = HostName;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum ComponentDesiredState {
     Stopped,
     Running,
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum DependencyKind {
     PeerComponent,
 }
@@ -299,10 +236,7 @@ pub type ComponentNotReady = ComponentNotReadyReason;
 pub type DomainSocketPath = String;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub struct InternalComponentInstanceOrigin {
     pub component_principal: ComponentPrincipal,
     pub component_instance_name: ComponentInstanceName,
@@ -317,10 +251,7 @@ pub type EngineIdentifier = String;
 pub type StateDirectoryPath = String;
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum Query {
     Query(LifecycleQuery),
     Announce(Presence),
@@ -328,10 +259,7 @@ pub enum Query {
 }
 #[rustfmt::skip]
 #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, Clone, Debug, PartialEq)]
-#[cfg_attr(
-    feature = "datom",
-    derive(datom_codec::Datomizable, datom_codec::Compositional)
-)]
+#[cfg_attr(feature = "datom", derive(datom_codec::Datomizable, datom_codec::Composing))]
 pub enum Response {
     Ready(ComponentReady),
     Unimplemented(RequestUnimplemented),
