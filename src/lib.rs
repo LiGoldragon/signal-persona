@@ -13,3 +13,7 @@ pub use generated::signal::*;
 pub const ETHOS: &str = include_str!("../ethos/signal.ethos");
 
 pub use signal::{ByteViewable, Restorable, Signal, Signalizable};
+
+impl signal::Contracted for Query {
+    const CONTRACT_SOURCE: &'static str = ETHOS;
+}
