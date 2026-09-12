@@ -34,3 +34,36 @@ fn datom_round_trip_preserves_lifecycle_shapes() {
         .expect("actualize");
     assert_eq!(restored, query);
 }
+
+/// The frame this contract speaks is `signal`'s own type, not a copy of it.
+/// A generic transport is written once against `signal`'s kinds; it must
+/// carry this contract's frames without knowing this contract exists.
+#[test]
+fn a_generic_signal_transport_carries_this_contract() {
+    fn ship<T>(value: &T) -> Vec<u8>
+    where
+        T: signal::Signalizable,
+        signal::Signal<T>: signal::ByteViewable,
+    {
+        use signal::ByteViewable;
+        value.signalize().expect("archive").bytes().to_vec()
+    }
+    fn land<T>(bytes: Vec<u8>) -> T
+    where
+        signal::Signal<T>: signal::Restorable<T>,
+    {
+        use signal::Restorable;
+        signal::Signal::<T>::from(bytes).restore().expect("restore")
+    }
+
+    let query = Query::Stop(String::from("router"));
+    let landed: Query = land(ship(&query));
+    assert_eq!(landed, query);
+
+    // The contract's own re-exported names denote that same type.
+    let framed: Signal<Query> = signal::Signal::<Query>::from(ship(&query));
+    assert_eq!(
+        <Signal<Query> as Restorable<Query>>::restore(&framed).expect("restore"),
+        query
+    );
+}
