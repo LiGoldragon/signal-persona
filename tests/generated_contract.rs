@@ -76,12 +76,12 @@ fn a_generic_signal_transport_carries_this_contract() {
 fn archived<T>(value: &T) -> Vec<u8>
 where
     T: for<'a> rkyv::Serialize<
-        rkyv::api::high::HighSerializer<
-            rkyv::util::AlignedVec,
-            rkyv::ser::allocator::ArenaHandle<'a>,
-            rkyv::rancor::Error,
+            rkyv::api::high::HighSerializer<
+                rkyv::util::AlignedVec,
+                rkyv::ser::allocator::ArenaHandle<'a>,
+                rkyv::rancor::Error,
+            >,
         >,
-    >,
 {
     rkyv::to_bytes::<rkyv::rancor::Error>(value)
         .expect("archive")
@@ -100,19 +100,28 @@ fn newtype_heads_archive_as_the_types_they_replace() {
         archived(&text)
     );
     assert_eq!(archived(&HostName(text.clone())), archived(&text));
-    assert_eq!(archived(&EngineManagementProtocolVersion(7)), archived(&7_i64));
+    assert_eq!(
+        archived(&EngineManagementProtocolVersion(7)),
+        archived(&7_i64)
+    );
     assert_eq!(archived(&TimestampNanoseconds(73)), archived(&73_i64));
     let name = ComponentName(text.clone());
     assert_eq!(archived(&ExpectedComponent(name.clone())), archived(&name));
     let host = HostName(text.clone());
     assert_eq!(archived(&Host(host.clone())), archived(&host));
     let instant = Some(TimestampNanoseconds(73));
-    assert_eq!(archived(&ComponentReady(instant.clone())), archived(&instant));
+    assert_eq!(
+        archived(&ComponentReady(instant.clone())),
+        archived(&instant)
+    );
     assert_eq!(
         archived(&StopAcknowledgement(instant.clone())),
         archived(&instant)
     );
-    assert_eq!(archived(&StopAcknowledgement(None)), archived(&None::<TimestampNanoseconds>));
+    assert_eq!(
+        archived(&StopAcknowledgement(None)),
+        archived(&None::<TimestampNanoseconds>)
+    );
 }
 
 #[cfg(feature = "datom")]
@@ -123,7 +132,10 @@ fn newtype_heads_textualize_as_the_types_they_replace() {
     fn text<T: Datomizable>(value: T) -> String {
         value.datomize(vec![]).protosize().textualize()
     }
-    assert_eq!(text(ComponentName(String::from("router"))), text(String::from("router")));
+    assert_eq!(
+        text(ComponentName(String::from("router"))),
+        text(String::from("router"))
+    );
     assert_eq!(text(TimestampNanoseconds(73)), text(73_i64));
     assert_eq!(
         text(StopAcknowledgement(Some(TimestampNanoseconds(73)))),
