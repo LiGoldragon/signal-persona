@@ -1,13 +1,16 @@
-use signal_persona::{ByteViewable, Query, Response, Restorable, Signal, Signalizable};
+use signal_persona::{
+    ByteViewable, ComponentName, Query, Response, Restorable, Signal, Signalizable,
+    StopAcknowledgement, TimestampNanoseconds,
+};
 
 #[test]
 fn lifecycle_query_and_response_restore_from_fresh_peer_bytes() {
-    let query = Query::Stop(String::from("router"));
+    let query = Query::Stop(ComponentName(String::from("router")));
     let outgoing = query.signalize().expect("archive query");
     assert!(!outgoing.bytes().is_empty());
     let incoming = Signal::<Query>::from(outgoing.bytes().to_vec());
     assert_eq!(incoming.restore().expect("restore query"), query);
-    let response = Response::StopAcknowledged(Some(73));
+    let response = Response::StopAcknowledged(StopAcknowledgement(Some(TimestampNanoseconds(73))));
     let outgoing = response.signalize().expect("archive response");
     let incoming = Signal::<Response>::from(outgoing.bytes().to_vec());
     assert_eq!(incoming.restore().expect("restore response"), response);
@@ -21,13 +24,13 @@ fn malformed_peer_bytes_are_rejected() {
 fn datom_round_trip_preserves_lifecycle_shapes() {
     use datom_codec::{Actualizing, Budget, Datomizable, Potential};
     use protos::{Protosizable, ReaderBudget, Textualizable};
-    let query = Query::Stop(String::from("router"));
+    let query = Query::Stop(ComponentName(String::from("router")));
     let rendered = query.clone().datomize(vec![]).protosize().textualize();
     let mut pending = Potential::<Query>::from(rendered);
     let restored = pending
         .actualize(&mut Budget {
             remaining: 4096,
-            reader: ReaderBudget { remaining: 4096 },
+            reader: ReaderBudget::try_from(4096).unwrap(),
             depth: 0,
             maximum_depth: 256,
         })
@@ -56,7 +59,7 @@ fn a_generic_signal_transport_carries_this_contract() {
         signal::Signal::<T>::from(bytes).restore().expect("restore")
     }
 
-    let query = Query::Stop(String::from("router"));
+    let query = Query::Stop(ComponentName(String::from("router")));
     let landed: Query = land(ship(&query));
     assert_eq!(landed, query);
 
