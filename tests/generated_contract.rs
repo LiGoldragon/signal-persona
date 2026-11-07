@@ -110,14 +110,8 @@ fn newtype_heads_archive_as_the_types_they_replace() {
     let host = HostName(text.clone());
     assert_eq!(archived(&Host(host.clone())), archived(&host));
     let instant = Some(TimestampNanoseconds(73));
-    assert_eq!(
-        archived(&ComponentReady(instant.clone())),
-        archived(&instant)
-    );
-    assert_eq!(
-        archived(&StopAcknowledgement(instant.clone())),
-        archived(&instant)
-    );
+    assert_eq!(archived(&ComponentReady(instant)), archived(&instant));
+    assert_eq!(archived(&StopAcknowledgement(instant)), archived(&instant));
     assert_eq!(
         archived(&StopAcknowledgement(None)),
         archived(&None::<TimestampNanoseconds>)
